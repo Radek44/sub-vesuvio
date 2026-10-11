@@ -18,6 +18,11 @@ import { P, h3, mixc, noise2, tint } from '../art/palette';
 /** Vesuvius as seen from Pompeii: about 30 voxels high and 220 wide, the slopes green with vines below, bare grey above. */
 function vesuvius() {
   const m = model();
+  // a long low range of foothills the mountain stands on, hazed into the horizon
+  for (let x = -127; x <= 127; x++) {
+    const hgt = Math.round(3 + noise2(x + 400, 0, 18, 9) * 4);
+    for (let y = -6; y <= hgt; y++) for (let z = 16; z <= 20; z++) m.solid.set(x, y, z, mixc(0xb9c9bd, 0x93ab92, Math.max(0, (y + 6) / (hgt + 6))));
+  }
   for (let x = -110; x <= 110; x++) for (let z = -20; z <= 20; z++) {
     const ax = Math.abs(x);
     // a cone with a broad foot, and Somma's older, lower ridge to the right (north-east, seen from the town)

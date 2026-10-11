@@ -69,7 +69,7 @@ export const IDLE: Input = { x: 0, z: 0 };
 export function create(name = 'Marcus', level: Level = portaMarina()): State {
   const s = level.spawn;
   const dog = level.npcs.find((n) => n.who === 'Ferox')!;
-  const dogY = (level.world.topAt(dog.x, dog.z, 120, -20) ?? 0) + 1;
+  const dogY = groundAt(level, dog.x, dog.z);
   return {
     t: 0,
     hero: { x: s.x, y: s.y, z: s.z, vy: 0, grounded: true },
@@ -221,8 +221,11 @@ function stepFerox(s: State, level: Level): State {
   return { ...s, ferox: { ...f, body: r.body, facing: Math.atan2(dx, dz), speed: moved } };
 }
 
-/** Where the ground is under a point, for the world (voxels). */
-export const groundAt = (level: Level, x: number, z: number): number => (level.world.topAt(Math.round(x), Math.round(z), 120, -20) ?? roadY(x)) + 1;
+/**
+ * Where someone standing at (x, z) stands (voxels): the first floor below head height above the street,
+ * so a shopkeeper under a roof stands on the shop floor, not on the tiles.
+ */
+export const groundAt = (level: Level, x: number, z: number): number => (level.world.topAt(Math.round(x), Math.round(z), roadY(x) + 16, -30) ?? roadY(x)) + 1;
 
 export const sim: StepSim<State, Input> = {
   id: 'sub-vesuvio',

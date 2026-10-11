@@ -98,7 +98,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1e1714; fon
   position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%);
   width: min(760px, calc(100vw - 24px)); display: flex; align-items: flex-end; gap: 0; cursor: pointer; animation: rise 0.22s ease-out;
 }
-.dialogue .face { width: 132px; height: 132px; margin-right: -18px; margin-bottom: 6px; z-index: 1; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.4)); image-rendering: auto; }
+.dialogue .face {
+  /* a painted medallion, like the portrait roundels in Pompeian wall painting */
+  width: 128px; height: 128px; margin-right: -22px; margin-bottom: 4px; z-index: 1; object-fit: cover;
+  border-radius: 50%; background: radial-gradient(circle at 50% 40%, #f4e6c6, #d9b77a 70%, #b98c4a);
+  border: 4px solid var(--red); box-shadow: inset 0 0 0 3px rgba(243, 232, 210, 0.9), 0 0 0 2px var(--black), var(--shadow);
+}
 .dialogue .panel { flex: 1; min-width: 0; padding: 16px 20px 12px 30px; }
 .dialogue .panel { background: var(--plaster); border: 3px solid var(--red); box-shadow: inset 0 0 0 3px var(--plaster), inset 0 0 0 4px var(--black), var(--shadow); border-radius: 4px; }
 .dialogue.self .panel { background: #efe4cc; border-color: #6a5440; }
@@ -134,7 +139,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1e1714; fon
 .gloss .tip::after { content: ''; position: absolute; left: 50%; top: 100%; margin-left: -5px; border: 5px solid transparent; border-top-color: var(--black); }
 
 @media (max-width: 600px) {
-  .dialogue .face { width: 92px; height: 92px; margin-right: -14px; }
+  .dialogue .face { width: 88px; height: 88px; margin-right: -16px; }
   .dialogue .line { font-size: 17px; }
   .objective { font-size: 13px; }
 }

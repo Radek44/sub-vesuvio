@@ -106,8 +106,8 @@ export class TownView {
     scene.add(this.lamps.group);
     const sources: EmitterSource[] = [];
     for (const s of level.smoke) sources.push(s.kind === 'smoke'
-      ? { kind: 'smoke', x: s.x * VOX, y: s.y * VOX, z: s.z * VOX, rate: 6, vel: [0.25, 0.5, 0.05], spread: 0.08, area: 0.3, colors: [0xd6d0c6, 0xbab3a8, 0xe4dfd6], size: 2.2, daynight: [0.8, 1.3] }
-      : { kind: 'steam', x: s.x * VOX, y: s.y * VOX, z: s.z * VOX, rate: 5, vel: [0.1, 0.35, 0], spread: 0.06, area: 0.25, colors: [0xf4f2ee, 0xe8eef0], size: 1.6 });
+      ? { kind: 'smoke', x: s.x * VOX, y: s.y * VOX, z: s.z * VOX, rate: 10, vel: [0.25, 0.5, 0.05], spread: 0.08, area: 0.2, colors: [0xcfc8bd, 0xb4ada2, 0xdcd6cc], size: 1.3, daynight: [0.8, 1.3] }
+      : { kind: 'steam', x: s.x * VOX, y: s.y * VOX, z: s.z * VOX, rate: 8, vel: [0.1, 0.35, 0], spread: 0.06, area: 0.2, colors: [0xf4f2ee, 0xe8eef0], size: 1.0 });
     for (const j of level.jets) sources.push(
       { kind: 'spray', x: j.x * VOX, y: j.y * VOX, z: j.z * VOX, rate: 70, vel: [j.dir[0] * 0.55, 0.15, j.dir[1] * 0.55], spread: 0.04, colors: [0xdff6ff, 0xffffff, 0xc6ecf6], size: 0.8, floor: (j.y - 3.2) * VOX },
       { kind: 'mist', x: j.x * VOX, y: (j.y - 3) * VOX, z: (j.z + 4) * VOX, rate: 4, vel: [0, 0.06, 0], spread: 0.04, area: 0.3, colors: [0xeaf6f8], size: 0.9 },

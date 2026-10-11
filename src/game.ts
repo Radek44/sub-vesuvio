@@ -38,7 +38,11 @@ let total = 1;
 
 export function start(host: HTMLElement, save: Save): () => void {
   store.patch({ save });
-  if (qaParam('qa') !== null) Object.assign(window, { __game: { sim: () => store.get().sim, view: () => store.get(), act: (i: Partial<Input>) => queue(i) } });
+  if (qaParam('qa') !== null) Object.assign(window, { __game: {
+    sim: () => store.get().sim, view: () => store.get(), act: (i: Partial<Input>) => queue(i),
+    // QA only: put the story somewhere (screenshots of later scenes); never used by the game
+    patch: (p: Partial<State>) => store.patch({ sim: { ...store.get().sim, ...p } }),
+  } });
   const unbind = bindInput(input);
   world = new World(host, level);
   analytics.step('boot', 'load_finished');
