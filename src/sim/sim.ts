@@ -148,20 +148,23 @@ function stepTalk(s: State, input: Input): State {
     const r = talkStep(PROLOGUE, here, { answer: input.answer }, ctx);
     let next = apply(s, r.effects);
     next = { ...next, answers: [...next.answers, { id, grade: graded.grade }] };
-    const t: Talk = { ...talk, cursor: r.cursor ?? here, result: graded.grade, feedback: graded.feedback };
-    return r.cursor ? { ...next, talk: t } : endTalk({ ...next, talk: t });
+    return moveOn(next, { ...talk, result: graded.grade, feedback: graded.feedback }, r.cursor);
   }
   if (atChoice) {
     if (!input.pick) return s;
     const r = talkStep(PROLOGUE, here, { pick: input.pick }, ctx);
-    const next = apply(s, r.effects);
-    return r.cursor ? { ...next, talk: { ...talk, cursor: r.cursor } } : endTalk(next);
+    return moveOn(apply(s, r.effects), talk, r.cursor);
   }
   if (!input.act) return s;
   const r = talkStep(PROLOGUE, here, {}, ctx);
-  const next = apply(s, r.effects);
   // the last answer's feedback stays until the question comes back (the UI shows it there)
-  return r.cursor ? { ...next, talk: { ...talk, cursor: r.cursor } } : endTalk(next);
+  return moveOn(apply(s, r.effects), talk, r.cursor);
+}
+
+/** After the effects are applied: read on under the new story flags (a line can unlock the next). */
+function moveOn(s: State, talk: Talk, cursor: Cursor | null): State {
+  const next = cursor && settle(PROLOGUE, cursor, ctxOf(s));
+  return next ? { ...s, talk: { ...talk, cursor: next } } : endTalk({ ...s, talk });
 }
 
 function endTalk(s: State): State {
