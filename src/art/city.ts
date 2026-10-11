@@ -10,7 +10,7 @@
  * - Sea: nothing; the bay's water plane shows.
  */
 import { VoxelWorld } from 'ymir/voxel';
-import type { Ring } from '../level/types';
+import type { Level, Ring } from '../level/types';
 import { P, h2, h3, mixc, noise2, tint, vary } from './palette';
 
 export const RING_VOX = 0.5;
@@ -23,7 +23,22 @@ const WALLS = [P.ochre, P.plasterWhite, P.red, P.yellow, 0xd9c7a8, 0xc98a5a, P.p
  * Build the ring around a playable box of `w` × `d` metres. Voxel coordinates are metres / RING_VOX, so a
  * WorldView at scale RING_VOX lines up with the district's own world (which starts at 0, 0).
  */
-export function ringWorld(w: number, d: number, ring: Ring): VoxelWorld {
+/** A street (metres) running on out of the district, painted as paving through the ring. */
+export interface RingStreet { x0: number; x1: number; z0: number; z1: number }
+
+/** Where the district's streets leave its box: each exit carried on to the ring's edge. */
+export function exitStreets(L: Pick<Level, 'exits' | 'width' | 'depth'>, vox = 0.125): RingStreet[] {
+  const w = L.width * vox, d = L.depth * vox, far = RING_REACH + 4;
+  return L.exits.map((e) => {
+    const x0 = e.x0 * vox, x1 = (e.x1 + 1) * vox, z0 = e.z0 * vox, z1 = (e.z1 + 1) * vox;
+    if (x1 >= w - 1) return { x0: w - 1, x1: w + far, z0, z1 };
+    if (x0 <= 1) return { x0: -far, x1: 1, z0, z1 };
+    if (z0 <= 1) return { x0, x1, z0: -far, z1: 1 };
+    return { x0, x1, z0: d - 1, z1: d + far };
+  });
+}
+
+export function ringWorld(w: number, d: number, ring: Ring, streets: readonly RingStreet[] = []): VoxelWorld {
   const out = new VoxelWorld();
   const S = RING_VOX;
   const x0 = Math.floor(-RING_REACH / S), x1 = Math.ceil((w + RING_REACH) / S);
@@ -35,11 +50,21 @@ export function ringWorld(w: number, d: number, ring: Ring): VoxelWorld {
     const kind = ring.kind(x, z);
     if (kind === 'sea') continue;
     const g = Math.round(ring.height(x, z) / S);
+    const st = streets.find((r) => x >= r.x0 && x < r.x1 && z >= r.z0 && z < r.z1);
+    if (st) { street(out, gx, gz, x, z, g, st); continue; }
     if (kind === 'wall') { column(out, gx, g - 4, g + 14, (y) => vary(((y + (gx >> 2) + (gz >> 2)) & 3) ? P.tuff : P.limestone, gx, y, gz, 0.05)); continue; }
     if (kind === 'country') { country(out, gx, gz, x, z, g); continue; }
     city(out, gx, gz, x, z, g);
   }
   return out;
+}
+
+/** A street going on: lava paving down the middle, raised sidewalks along its sides, as in the district. */
+function street(w: VoxelWorld, gx: number, gz: number, x: number, z: number, g: number, r: RingStreet): void {
+  const across = r.x1 - r.x0 > r.z1 - r.z0 ? Math.min(z - r.z0, r.z1 - 0.01 - z) : Math.min(x - r.x0, r.x1 - 0.01 - x);
+  const walk = across < 1.5;
+  const top = walk ? g + 1 : g;
+  for (let y = g - 3; y <= top; y++) w.set(gx, y, gz, y < top ? P.soil : walk ? (across > 1 ? P.kerb : vary(P.limestone, gx, y, gz, 0.06)) : vary(P.basalt, gx, y, gz, 0.12));
 }
 
 function column(w: VoxelWorld, gx: number, y0: number, y1: number, c: (y: number) => number, gz = 0): void {

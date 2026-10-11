@@ -14,7 +14,7 @@ import { P, VOX, h3, vary } from '../art/palette';
 import { amphora, bench, crate, ship } from '../art/props';
 import { cypress, fig, olive, oleander, pergola, stonePine, tuft } from '../art/nature';
 import type { Level } from '../level/types';
-import { RING_VOX, ringWorld } from '../art/city';
+import { RING_VOX, exitStreets, ringWorld } from '../art/city';
 import { itemModel } from '../art/items';
 import { PEOPLE_VOX } from '../art/people';
 import type { ItemId } from '../content/items';
@@ -69,7 +69,7 @@ export class TownView {
     this.view = new WorldView(level.world, { scale: VOX, solid: this.look, glow: this.glow });
     this.root.add(this.view.group);
     // the city around: built once per district (a second or so, behind the loading screen)
-    this.ring = new WorldView(ringWorld(level.width * VOX, level.depth * VOX, level.ring), { scale: RING_VOX, solid: this.ringLook });
+    this.ring = new WorldView(ringWorld(level.width * VOX, level.depth * VOX, level.ring, exitStreets(level, VOX)), { scale: RING_VOX, solid: this.ringLook });
     this.ring.group.traverse((c) => { c.receiveShadow = true; });
     this.root.add(this.ring.group);
     for (const oc of level.occluders) {
