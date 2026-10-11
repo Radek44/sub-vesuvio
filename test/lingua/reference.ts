@@ -85,6 +85,16 @@ export const REF_NOUNS: Record<string, RefNoun> = {
     pl: ['puerī', 'puerōrum', 'puerīs', 'puerōs', 'puerīs', 'puerī'],
   },
   // ── Forum: reference rows for its words go here ──
+  statua: { gender: 'f', sg: ['statua', 'statuae', 'statuae', 'statuam', 'statuā', 'statua'], pl: ['statuae', 'statuārum', 'statuīs', 'statuās', 'statuīs', 'statuae'] },
+  columna: { gender: 'f', sg: ['columna', 'columnae', 'columnae', 'columnam', 'columnā', 'columna'], pl: ['columnae', 'columnārum', 'columnīs', 'columnās', 'columnīs', 'columnae'] },
+  mēnsa: { gender: 'f', sg: ['mēnsa', 'mēnsae', 'mēnsae', 'mēnsam', 'mēnsā', 'mēnsa'], pl: ['mēnsae', 'mēnsārum', 'mēnsīs', 'mēnsās', 'mēnsīs', 'mēnsae'] },
+  scrība: { gender: 'm', sg: ['scrība', 'scrībae', 'scrībae', 'scrībam', 'scrībā', 'scrība'], pl: ['scrībae', 'scrībārum', 'scrībīs', 'scrībās', 'scrībīs', 'scrībae'] },
+  lāna: { gender: 'f', sg: ['lāna', 'lānae', 'lānae', 'lānam', 'lānā', 'lāna'], pl: ['lānae', 'lānārum', 'lānīs', 'lānās', 'lānīs', 'lānae'] },
+  Eumachia: { gender: 'f', sg: ['Eumachia', 'Eumachiae', 'Eumachiae', 'Eumachiam', 'Eumachiā', 'Eumachia'] },
+  piscis: { gender: 'm', sg: ['piscis', 'piscis', 'piscī', 'piscem', 'pisce', 'piscis'], pl: ['piscēs', 'piscium', 'piscibus', 'piscēs/piscīs', 'piscibus', 'piscēs'] },
+  fōns: { gender: 'm', sg: ['fōns', 'fontis', 'fontī', 'fontem', 'fonte', 'fōns'], pl: ['fontēs', 'fontium', 'fontibus', 'fontēs/fontīs', 'fontibus', 'fontēs'] },
+  sōl: { gender: 'm', sg: ['sōl', 'sōlis', 'sōlī', 'sōlem', 'sōle', 'sōl'], pl: ['sōlēs', 'sōlum', 'sōlibus', 'sōlēs', 'sōlibus', 'sōlēs'] },
+  Apollō: { gender: 'm', sg: ['Apollō', 'Apollinis', 'Apollinī', 'Apollinem', 'Apolline', 'Apollō'] },
 
   // The town's people and goods (added with the open city)
   senex: { gender: 'm', sg: ['senex', 'senis', 'senī', 'senem', 'sene', 'senex'], pl: ['senēs', 'senum', 'senibus', 'senēs', 'senibus', 'senēs'] },
