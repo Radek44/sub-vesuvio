@@ -14,12 +14,17 @@ fixes and features go to Ymir first (its roadmap is §13 of the design), then mo
 - `src/world.ts`: the scene on a ymir/three `Stage`; reads state, never writes it.
 - `src/main.tsx` + `src/styles.css`: the UI (ymir/ui, themed). `src/save.ts`: the versioned save.
   `src/analytics.ts`: funnels. `src/boot.ts`: platform, save, analytics.
-- Planned (see the design): `src/lingua/` (the Latin engine, pure), `content/` (chapters, dialogue,
-  puzzles, lessons, lexicon as data).
+- `src/lingua/`: the Latin engine, pure, no Ymir (`index.ts` barrel). `lexicon.ts` (entries with macrons, en/fr,
+  grammar point; irregular forms listed, never guessed), `forms.ts` (generator), `analyse.ts` (every reading of a
+  form), `check.ts` (the answer ladder: choose/build/endings/write against a frame; feedback codes in
+  `FEEDBACK_CODES`), `lint.ts` (content lint; Latin inside English or French text goes in «guillemets», a fully
+  Latin dialogue line has `notes.la: true`), `roman.ts`, `normalize.ts` (Roma's answer normalisation + i/j, u/v).
+  Tests in `test/lingua/`; `reference.ts` there is the hand-entered paradigm table, never generated.
+- Planned (see the design): `content/` (chapters, dialogue, puzzles, lessons as data).
 
 ## Rules: the game
 - The sim and `lingua` never read the clock, the DOM, Three.js or the platform, and never call
-  `Math.random`. `test/architecture.test.ts` enforces it for the sim; extend it to `lingua` when it lands.
+  `Math.random`. `test/architecture.test.ts` enforces it for both.
 - A change to the save's shape bumps its version and adds a migration, with a test loading a real old save.
 - Analytics: `analytics.step`/`track` from the controller only; no free text in payloads.
 - `npm run validate` before every commit; CI also builds and runs `npm run smoke`.
