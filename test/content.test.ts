@@ -66,6 +66,21 @@ describe('content', () => {
   });
 });
 
+describe('side quests', () => {
+  it('every quest a conversation starts, moves or checks is in the journal, at a stage it has', () => {
+    const bad: string[] = [];
+    const visit = (o: unknown, where: string): void => {
+      if (!o || typeof o !== 'object') return;
+      if (Array.isArray(o)) { o.forEach((v) => visit(v, where)); return; }
+      const r = o as Record<string, unknown>;
+      if (typeof r.quest === 'string' && typeof r.stage === 'string' && !QUESTS[r.quest]?.order.includes(r.stage)) bad.push(`${where}: ${r.quest}/${r.stage}`);
+      for (const v of Object.values(r)) visit(v, where);
+    };
+    for (const [id, node] of Object.entries(PROLOGUE)) visit(node, id);
+    expect(bad).toEqual([]);
+  });
+});
+
 describe('Latin on things', () => {
   it('item names, name tags, district names, shop signs and shop names are Latin lingua knows', () => {
     for (const [id, it] of Object.entries(ITEMS)) {

@@ -82,14 +82,14 @@ export const FORUM: Script<Cond, Effect> = {
     ],
   },
 
-  // ── Fortunata, the fruit seller in the Macellum ──
-  'forum-fortunata': {
-    id: 'forum-fortunata',
+  // ── Iucunda, the fruit seller in the Macellum ──
+  'forum-iucunda': {
+    id: 'forum-iucunda',
     lines: [
-      { who: 'Fortunata', text: '«Salvē!» Grapes from the slopes of the mountain, apples, the last of the figs, cheese from the hills. Fish? Over by the water. Follow your nose.' },
-      { who: 'Fortunata', text: 'One bunch is «ūva». Two are «ūvae». Say it right and I’ll pick you the sweetest.', notes: { gloss: { ūva: g('a bunch of grapes', 'une grappe de raisin'), ūvae: g('bunches of grapes', 'des grappes de raisin') } } },
-      { who: 'Fortunata', text: '«Ūna ūva, ūnus as.» One bunch, one coin. The aediles check my scales, so don’t look at me like that.', notes: { gloss: { ūna: g('one', 'une'), as: g('an as, a bronze coin', 'un as, une pièce de bronze') } } },
-      { who: 'Fortunata', text: 'The ground shook in the night and the whole heap of figs walked off the table. The children of Pompeii ate well this morning.' },
+      { who: 'Iucunda', text: '«Salvē!» Grapes from the slopes of the mountain, apples, the last of the figs, cheese from the hills. Fish? Over by the water. Follow your nose.' },
+      { who: 'Iucunda', text: 'One bunch is «ūva». Two are «ūvae». Say it right and I’ll pick you the sweetest.', notes: { gloss: { ūva: g('a bunch of grapes', 'une grappe de raisin'), ūvae: g('bunches of grapes', 'des grappes de raisin') } } },
+      { who: 'Iucunda', text: '«Ūna ūva, ūnus as.» One bunch, one coin. The aediles check my scales, so don’t look at me like that.', notes: { gloss: { ūna: g('one', 'une'), as: g('an as, a bronze coin', 'un as, une pièce de bronze') } } },
+      { who: 'Iucunda', text: 'The ground shook in the night and the whole heap of figs walked off the table. The children of Pompeii ate well this morning.' },
     ],
   },
 
@@ -183,7 +183,7 @@ export const FORUM: Script<Cond, Effect> = {
 
 /** Spot or npc id → conversation id, for this district. */
 export const FORUM_TALK: Record<string, string> = {
-  'forum-secundus': 'forum-secundus', 'forum-fortunata': 'forum-fortunata', 'forum-onesimus': 'forum-onesimus',
+  'forum-secundus': 'forum-secundus', 'forum-iucunda': 'forum-iucunda', 'forum-onesimus': 'forum-onesimus',
   'forum-jupiter': 'forum-jupiter', 'forum-mensa': 'forum-mensa', 'forum-sundial': 'forum-sundial', 'forum-eumachia': 'forum-eumachia',
   'forum-basilica': 'forum-basilica', 'forum-lares': 'forum-lares', 'forum-vespasian': 'forum-vespasian', 'forum-tholos': 'forum-tholos',
   'forum-fountain': 'forum-fountain',

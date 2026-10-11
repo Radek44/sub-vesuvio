@@ -54,6 +54,15 @@ export const QUESTS: Record<string, Quest> = {
     },
     reward: { en: 'a sun hat (petasus)', fr: 'un chapeau de soleil (petasus)' },
   },
+  'forum-stylus': {
+    title: { la: 'Stilus', en: 'A stylus for Secundus', fr: 'Un stylet pour Secundus' },
+    giver: 'Secundus', district: 'forum', order: ['asked', 'done'],
+    stages: {
+      asked: { en: 'Secundus, the banker’s clerk in the Forum’s east colonnade, snapped his stylus. The stationer by the temple steps sells them.', fr: 'Secundus, le commis du banquier sous la colonnade est du Forum, a cassé son stylet. Le papetier près des marches du temple en vend.' },
+      done: { en: 'Secundus is writing his sums again, with your stylus.', fr: 'Secundus fait de nouveau ses comptes, avec ton stylet.' },
+    },
+    reward: { en: '3 asses', fr: '3 as' },
+  },
   feles: {
     title: { la: 'Fēlēs', en: 'Fortunata’s cat', fr: 'La chatte de Fortunata' },
     giver: 'Fortunata', district: 'abbondanza', order: ['search', 'back', 'done'],

@@ -119,7 +119,7 @@ export class Backdrop {
   private mat: THREE.MeshLambertMaterial;
   readonly land: WorldView;
 
-  constructor(scene: THREE.Scene, private o: { scale: number; sea?: { west: number; south: number; level: number }; mapW: number; mapD: number; wallX: number }) {
+  constructor(scene: THREE.Scene, private o: { scale: number; sea?: { west: number; south: number; level: number }; mapW: number; mapD: number; wallX: number; ground?: number }) {
     // The land beyond the map (`farLand`) stays off: with the world's curve it is over the horizon, and
     // near the map's edges it read as a floating slab. The sea and the mountain carry the distance.
     this.land = new WorldView(new VoxelWorld(), { scale: 2 });
@@ -139,8 +139,9 @@ export class Backdrop {
       // inland: the far city and fields as one hazy plain, just under the ring's ground, rolling over the horizon
       this.sea = null;
       const geo = new THREE.PlaneGeometry(span * 2, span * 2, 64, 64).rotateX(-Math.PI / 2);
-      this.plain = new THREE.Mesh(geo, bendable(new THREE.MeshLambertMaterial({ color: 0x9a8a68 })));
-      this.plain.position.set(o.mapW / 2, -1.5, o.mapD / 2);
+      // the colour of roofs and fields seen through haze; just under the district's own ground, so it reaches the horizon
+      this.plain = new THREE.Mesh(geo, bendable(new THREE.MeshLambertMaterial({ color: 0xa8916c })));
+      this.plain.position.set(o.mapW / 2, (o.ground ?? 0) - 0.6, o.mapD / 2);
       this.plain.receiveShadow = true;
       scene.add(this.plain);
     }

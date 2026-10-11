@@ -21,6 +21,22 @@ export interface WorldOptions { quality?: 'high' | 'balanced' | 'low'; plume?: n
 const TAG_FAR = 96, TAG_NEAR = 64;
 const SIGN_FAR = 150, SIGN_NEAR = 110;
 
+/**
+ * A silhouette where something stands behind a roof or a wall: drawn only where the depth test fails
+ * (GreaterDepth), so the hero never disappears under the eaves of a portico.
+ */
+const XRAY = new THREE.MeshBasicMaterial({ color: 0xf3e8d2, transparent: true, opacity: 0.45, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false });
+function xray(root: THREE.Object3D): void {
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+  for (const m of meshes) {
+    const ghost = new THREE.Mesh(m.geometry, XRAY);
+    ghost.renderOrder = 10;
+    ghost.castShadow = false;
+    m.add(ghost);
+  }
+}
+
 const cap = (s: string) => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 const el = (cls: string, html: string): HTMLElement => {
   const d = document.createElement('div');
@@ -56,10 +72,12 @@ export class World {
       post: createPost({ tiltShift: { amount: 2, focus: 0.42, band: 0.2 }, grade: { saturation: 1.1, warmth: 0.18, vignette: 0.3 } }),
     });
     this.env = new Environment(this.stage.scene, { mood: BAY.arrival, renderer: this.stage.renderer, shadowExtent: 18, horizon: 0.55 });
-    LOOK.uBend.value = 0.05;
+    LOOK.uBend.value = 0.018; // a gentle roll: the Forum's temples stay in view across the piazza
     this.hero = personRig('hero', CAST.hero);
     this.heroHat = personRig('hero:hat', { ...CAST.hero, hat: 0xc9a868 });
     this.stage.scene.add(this.hero.root, this.heroHat.root);
+    xray(this.hero.root);
+    xray(this.heroHat.root);
     this.anchors = new Anchors((x, y, z) => this.stage.toScreen(x, y, z));
     this.layer = el('tags', '');
     host.appendChild(this.layer);
@@ -76,6 +94,7 @@ export class World {
     this.town = new TownView(this.stage.scene, this.env, level, { plume: this.o.plume ?? 0.05 });
     this.folk = new Townsfolk(level);
     this.stage.scene.add(this.folk.group);
+    xray(this.folk.ferox.root);
     this.started = false;
     // name tags: a name for the cast, the Latin for what they are (and its meaning) for everyone else
     for (const p of this.folk.people) {
@@ -89,7 +108,7 @@ export class World {
     }, TAG_NEAR, TAG_FAR, true);
     // shop signs: the painted Latin over the counter, and whose shop it is
     for (const s of level.shops) {
-      const y = level.groundAt(s.x, s.z) * VOX + 2.6;
+      const y = level.groundAt(s.x, s.z) * VOX + 3.3; // over the door, above the keeper's name
       this.label(el('sign', `<b lang="la">${esc(s.sign)}</b><small class="en">${esc(s.name.en)}</small><small class="fr">${esc(s.name.fr)}</small>`),
         () => ({ x: s.x * VOX, y, z: s.z * VOX }), SIGN_NEAR, SIGN_FAR);
     }

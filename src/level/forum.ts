@@ -163,7 +163,7 @@ export function buildForum(): Level {
 
   // ── Shops: a counter to buy at, a keeper behind it ──
   L.shops.push(
-    { id: 'forum-fruit', name: { la: 'Macellum', en: 'Fortunata’s fruit stall in the market hall', fr: 'L’étal de fruits de Fortunata, au marché couvert' }, sign: 'MACELLVM', keeper: 'forum-fortunata', x: 492, z: 109,
+    { id: 'forum-fruit', name: { la: 'Macellum', en: 'Iucunda’s fruit stall in the market hall', fr: 'L’étal de fruits de Iucunda, au marché couvert' }, sign: 'MACELLVM', keeper: 'forum-iucunda', x: 492, z: 109,
       stock: [{ item: 'grapes', price: 1 }, { item: 'apple', price: 1 }, { item: 'cheese', price: 3 }, { item: 'bread', price: 2 }] },
     { id: 'forum-tablets', name: { la: 'Tabulae', en: 'The stationer’s stall', fr: 'L’étal du papetier' }, sign: 'TABVLAE', keeper: 'forum-stationer', x: 246, z: 162,
       stock: [{ item: 'tablet', price: 5 }, { item: 'stylus', price: 2 }] },
@@ -178,7 +178,7 @@ export function buildForum(): Level {
   L.npcs.push(
     // the named: the banker's clerk at his table, the fruit seller, the sign painter
     { id: 'forum-secundus', who: 'Secundus', x: 430, z: 45, facing: -Math.PI / 2, pose: 'sell' },
-    { id: 'forum-fortunata', who: 'Fortunata', x: 489, z: 97, facing: 0, pose: 'sell' },
+    { id: 'forum-iucunda', who: 'Iucunda', x: 489, z: 97, facing: 0, pose: 'sell' },
     { id: 'forum-onesimus', who: 'Onesimus', x: 58, z: 213, facing: Math.PI, pose: 'work' },
     // the keepers of the stalls
     { id: 'forum-stationer', who: 'vir:3', x: 246, z: 148, facing: 0, pose: 'sell' },
@@ -556,7 +556,7 @@ function macellum(w: VoxelWorld, L: Level, stamp: Stamp, prop: Prop): void {
   for (let y = F; y <= F + 5; y++) w.set(cx, y, cz, vary(P.marble, cx, y, cz, 0.03)); // the spout
   L.water.push({ x: bx0 + 1, z: bz0 + 1, w: bx1 - bx0 - 1, d: bz1 - bz0 - 1, level: F + 2.4, floor: F + 0.2, kind: 'pool' });
   L.jets.push({ x: cx + 0.5, y: F + 6, z: cz + 0.5, dir: [0, 1] });
-  // stalls round the tholos: Fortunata's fruit, fish, bread, figs; the hot-food counter in the corner
+  // stalls round the tholos: Iucunda's fruit, fish, bread, figs; the hot-food counter in the corner
   stamp(stall(18, 'grapes', P.yellow, 'corner'), 480, F, 101);
   stamp(stall(12, 'apples', P.yellow), 500, F, 101);
   stamp(stall(14, 'fish', 0x3f6a9a), 560, F, 101);

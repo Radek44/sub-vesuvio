@@ -122,6 +122,40 @@ describe('the open city', () => {
     expect(s.answers.map((a) => a.grade)).toEqual(['wrong', 'right']);
   });
 
+  it('Fortunata’s cat: asked in Via dell’Abbondanza, found at the harbour, brought home', () => {
+    const abb = district('abbondanza');
+    const on = (s: State, L: typeof level, id: string): State => {
+      const t = interactables(L, s).find((i) => i.id === id)!;
+      expect(t, id).toBeTruthy();
+      s = { ...s, hero: { ...s.hero, x: t.x, z: t.z + 3, y: L.groundAt(t.x, t.z + 3) } };
+      s = run(s, { x: 0, z: -1 }, 1);
+      return run(s, { x: 0, z: 0, act: true });
+    };
+    /** Talk to the end, answering each prompt with the next of `answers`. */
+    const talk = (s: State, answers: number[]): State => {
+      for (let i = 0; i < 60 && s.talk; i++) {
+        const before = s.talk.cursor;
+        s = run(s, { x: 0, z: 0, act: true });
+        if (s.talk && s.talk.cursor === before) s = run(s, { x: 0, z: 0, answer: answers.shift() ?? 0 });
+      }
+      return s;
+    };
+    let s: State = travel(roaming(), 'abbondanza', 'west');
+    s = talk(on(s, abb, 'abb-fortunata'), [0]);
+    expect(s.quests.feles).toBe('search');
+    // the cat at the harbour: a wrong word first («Canem»), then «Fēlem videō»
+    s = travel(s, 'portaMarina', 'east');
+    s = talk(on(s, level, 'cat'), [2, 0]);
+    expect(s.quests.feles).toBe('back');
+    expect(interactables(level, s).some((i) => i.id === 'cat')).toBe(false);
+    s = travel(s, 'abbondanza', 'west');
+    const coins = s.coins;
+    s = talk(on(s, abb, 'abb-fortunata'), [0]);
+    expect(s.quests.feles).toBe('done');
+    expect(s.items.lamp).toBe(1);
+    expect(s.coins).toBe(coins + 2);
+  });
+
   it('every quest stage the journal names exists, and every quest ends in done', () => {
     for (const q of Object.values(QUESTS)) {
       expect(q.order.at(-1)).toBe('done');

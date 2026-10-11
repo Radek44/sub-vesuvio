@@ -165,7 +165,8 @@ export class TownView {
     this.emitters = new Emitters(this.particles, sources);
     this.root.add(this.particles.mesh);
     const sea = level.sea ? { west: level.sea.west, south: 110, level: level.sea.level } : undefined;
-    this.backdrop = new Backdrop(scene, { scale: 0.5, sea, mapW: level.width * VOX, mapD: level.depth * VOX, wallX: 24 });
+    const mid = level.groundAt(level.width / 2, level.depth / 2) * VOX;
+    this.backdrop = new Backdrop(scene, { scale: 0.5, sea, mapW: level.width * VOX, mapD: level.depth * VOX, wallX: 24, ground: mid });
     this.backdrop.setPlume(o.plume ?? 0.05);
   }
 

@@ -10,7 +10,7 @@ import { bindInput, createInput } from 'ymir/ui';
 import { nearestInteractable } from 'ymir/core';
 import { analytics } from './analytics';
 import { SAVE, type Save } from './save';
-import { create, interactables, step, STEP_MS, type Input, type State } from './sim/sim';
+import { create, interactables, step, travel, STEP_MS, type Input, type State } from './sim/sim';
 import { district } from './level';
 import { World } from './render/world';
 import { ITEMS, type ItemId } from './content/items';
@@ -55,6 +55,7 @@ export function start(host: HTMLElement, save: Save): () => void {
     patch: (p: Partial<State>) => store.patch({ sim: { ...store.get().sim, ...p } }),
     panel: (p: Panel) => openPanel(p),
     world: () => world,
+    go: (to: State['district'], arrive: string) => { const sim = travel(store.get().sim, to, arrive); store.patch({ sim }); load(sim); },
     teleport: (x: number, z: number, facing?: number) => {
       const s = store.get().sim, L = district(s.district);
       store.patch({ sim: { ...s, hero: { ...s.hero, x, z, y: L.groundAt(x, z), vy: 0, grounded: true }, facing: facing ?? s.facing } });
