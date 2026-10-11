@@ -11,7 +11,7 @@
  * - Shoes: sandals (soleae) or closed calcei in town.
  */
 import { model, finish, box, pair, rect, type Model, type Build, type CharacterKit } from 'ymir/voxel';
-import { mixc, tint, h3 } from './palette';
+import { mixc, tint, h3, vary } from './palette';
 import { FORUM_CAST } from './people-forum';
 import { ABBONDANZA_CAST } from './people-abbondanza';
 
@@ -40,6 +40,8 @@ export interface Person {
   holds?: 'tablets' | 'stylus' | 'amphora' | 'chisel' | 'ladle' | 'scroll';
   /** Something on the head. */
   carries?: 'hydria' | 'basket';
+  /** A broad-brimmed petasus, in this colour (the hero, once the old man gives it). */
+  hat?: number;
   freckles?: boolean;
   /** Eye colour. */
   eyes?: number;
@@ -140,6 +142,12 @@ function head(p: Person): Model {
     // a wicker basket of grapes from the vintage, balanced on the head
     box(S, -4, h + 1, -4, 3, h + 3, 3, (x, y, z) => (Math.abs(x + 0.5) > 3 || Math.abs(z + 0.5) > 3 || y === h + 1 ? ((x + y + z) & 1 ? 0xa8844a : 0x8a6a3a) : null), 0);
     box(S, -3, h + 3, -3, 2, h + 4, 2, (x, y, z) => (h3(x, y, z) > 0.25 ? (h3(x, y + 1, z) > 0.5 ? 0x4b2a52 : 0x5a3a62) : null), 0);
+  }
+  if (p.hat !== undefined) {
+    // the petasus: a broad straw brim, a low round crown
+    const c = p.hat;
+    box(S, x0 - 3, h + 1, z0 - 3, x1 + 3, h + 1, z1 + 3, (x, _y, z) => ((x + 0.5) ** 2 + (z - (z0 + z1) / 2) ** 2 <= 64 ? vary(c, x, h, z, 0.06) : null), 0);
+    box(S, x0 + 1, h + 2, z0 + 1, x1 - 1, h + 4, z1 - 1, (x, y, z) => (y === h + 2 ? tint(c, -0.3) : vary(tint(c, -0.06), x, y, z, 0.05)), 0);
   }
   return finish(m);
 }

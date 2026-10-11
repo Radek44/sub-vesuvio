@@ -1,19 +1,25 @@
 /**
  * The controller: the only place that combines the sim, input, saves, analytics and the world. It runs
- * the sim in fixed steps (STEP_MS) whatever the frame rate, saves when the story moves, and publishes a
- * view for the UI.
+ * the sim in fixed steps (STEP_MS) whatever the frame rate, saves when the story moves, swaps the world's
+ * district when the hero walks into the next one (behind a short loading screen), and publishes a view for
+ * the UI: the screen, the panel open over it, the action prompt, and toasts for what just happened.
  */
 import { createStore } from 'ymir/core';
 import { qaParam, saveGame } from 'ymir/platform';
 import { bindInput, createInput } from 'ymir/ui';
+import { nearestInteractable } from 'ymir/core';
 import { analytics } from './analytics';
 import { SAVE, type Save } from './save';
 import { create, interactables, step, STEP_MS, type Input, type State } from './sim/sim';
-import { portaMarina } from './level/portaMarina';
+import { district } from './level';
 import { World } from './render/world';
-import { nearestInteractable } from 'ymir/core';
+import { ITEMS, type ItemId } from './content/items';
+import { QUESTS } from './content/quests';
 
 export type Screen = 'title' | 'loading' | 'play';
+/** What's open over the town: the satchel, the journal of tasks, the city map. */
+export type Panel = 'bag' | 'journal' | 'map' | null;
+export interface Toast { id: number; kind: 'item' | 'coins' | 'quest' | 'place'; text: { en: string; fr: string }; la?: string; item?: ItemId }
 export interface View {
   screen: Screen;
   sim: State;
@@ -23,18 +29,23 @@ export interface View {
   prompt: { verb: string; x: number; y: number } | null;
   /** 0–1 while the town meshes around the hero. */
   loading: number;
+  panel: Panel;
+  toasts: Toast[];
 }
 
-const level = portaMarina();
-export const store = createStore<View>({ screen: 'title', sim: create('', level), save: SAVE.load(null).state, touch: false, prompt: null, loading: 0 });
-export const input = createInput({ act: ['KeyE', 'Space', 'Enter', 'pad:A'], run: ['ShiftLeft', 'ShiftRight', 'pad:B'] });
+export const store = createStore<View>({ screen: 'title', sim: create(''), save: SAVE.load(null).state, touch: false, prompt: null, loading: 0, panel: null, toasts: [] });
+export const input = createInput({
+  act: ['KeyE', 'Space', 'Enter', 'pad:A'], run: ['ShiftLeft', 'ShiftRight', 'pad:B'],
+  bag: ['KeyI', 'KeyB', 'pad:Y'], journal: ['KeyJ', 'pad:X'], map: ['KeyM', 'pad:Back'], back: ['Escape', 'pad:Start'],
+});
 
 let world: World | null = null;
 let acc = 0;
 let moved = false;
-/** Inputs the UI queued for the next step (a picked option, an answer, a tap on "next"). */
+/** Inputs the UI queued for the next step (a picked option, an answer, a tap on "next", a purchase). */
 let queued: Partial<Input> = {};
 let total = 1;
+let toastId = 0;
 
 export function start(host: HTMLElement, save: Save): () => void {
   store.patch({ save });
@@ -42,9 +53,17 @@ export function start(host: HTMLElement, save: Save): () => void {
     sim: () => store.get().sim, view: () => store.get(), act: (i: Partial<Input>) => queue(i),
     // QA only: put the story somewhere (screenshots of later scenes); never used by the game
     patch: (p: Partial<State>) => store.patch({ sim: { ...store.get().sim, ...p } }),
+    panel: (p: Panel) => openPanel(p),
+    world: () => world,
+    teleport: (x: number, z: number, facing?: number) => {
+      const s = store.get().sim, L = district(s.district);
+      store.patch({ sim: { ...s, hero: { ...s.hero, x, z, y: L.groundAt(x, z), vy: 0, grounded: true }, facing: facing ?? s.facing } });
+    },
   } });
   const unbind = bindInput(input);
-  world = new World(host, level);
+  world = new World(host);
+  world.setLang(save.lang);
+  world.setLevel(district('portaMarina'));
   analytics.step('boot', 'load_finished');
   analytics.step('boot', 'title_shown');
   world.stage.start((dt, t) => frame(dt, t));
@@ -54,22 +73,59 @@ export function start(host: HTMLElement, save: Save): () => void {
 /** Start or continue: from the title screen. */
 export function play(name: string): void {
   const save = store.get().save;
-  let sim = create(name || 'Marcus', level);
   const st = save.name === name ? save.story : null;
+  let sim = create(name || 'Marcus', district(st?.district ?? 'portaMarina'));
   if (st) {
-    sim = { ...sim, flags: st.flags, objective: st.objective, answers: st.answers, seen: st.seen, talk: null,
-      hero: { ...sim.hero, x: st.at.x, y: st.at.y, z: st.at.z }, facing: st.at.facing, ferox: { ...sim.ferox, mode: st.ferox } };
-    if (st.ferox === 'follow') sim = { ...sim, ferox: { ...sim.ferox, body: { ...sim.hero, x: sim.hero.x - 10 } } };
+    const L = district(st.district);
+    sim = {
+      ...sim, district: st.district, flags: st.flags, objective: st.objective, answers: st.answers, seen: st.seen, talk: null,
+      coins: st.coins, items: st.items, quests: st.quests, visited: st.visited,
+      hero: { ...sim.hero, x: st.at.x, y: st.at.y, z: st.at.z }, facing: st.at.facing,
+      ferox: { ...sim.ferox, mode: st.ferox, district: st.feroxDistrict },
+    };
+    if (st.ferox === 'follow') {
+      const fx = sim.hero.x - 10;
+      sim = { ...sim, ferox: { ...sim.ferox, district: st.district, body: { ...sim.hero, x: fx, y: L.groundAt(fx, sim.hero.z) } } };
+    }
   }
   if (save.name !== name) analytics.step('ftue', 'named');
-  store.patch({ sim, screen: 'loading', save: { ...save, name } });
-  total = Math.max(1, world?.preload(sim, 0) ?? 1);
+  store.patch({ sim, screen: 'loading', save: { ...save, name }, panel: null });
+  load(sim);
 }
 
-export function setLang(lang: 'en' | 'fr'): void { const save = { ...store.get().save, lang }; store.patch({ save }); void saveGame(SAVE, save); }
+/** Show the hero's district and mesh around them behind the loading screen. */
+function load(s: State): void {
+  if (!world) return;
+  world.setLevel(district(s.district));
+  total = Math.max(1, world.preload(s, 0));
+  store.patch({ screen: 'loading', loading: 0 });
+}
 
-/** The UI's inputs: next line, an option picked, an answer given. */
+export function setLang(lang: 'en' | 'fr'): void {
+  const save = { ...store.get().save, lang };
+  store.patch({ save });
+  world?.setLang(lang);
+  void saveGame(SAVE, save);
+}
+
+/** The UI's inputs: next line, an option picked, an answer given, something bought, the shop closed. */
 export function queue(i: Partial<Input>): void { queued = { ...queued, ...i }; }
+
+/** Open a panel over the town (or close it with null). The world pauses under a panel. */
+export function openPanel(p: Panel): void {
+  const cur = store.get().panel;
+  const next = cur === p ? null : p;
+  if (next) analytics.track('panel', { panel: next });
+  store.patch({ panel: next });
+}
+
+export function dismissToast(id: number): void { store.patch({ toasts: store.get().toasts.filter((t) => t.id !== id) }); }
+
+function toast(t: Omit<Toast, 'id'>): void {
+  const id = ++toastId;
+  store.patch({ toasts: [...store.get().toasts.slice(-2), { ...t, id }] });
+  setTimeout(() => dismissToast(id), 3200);
+}
 
 function frame(dt: number, t: number): void {
   input.update();
@@ -79,30 +135,38 @@ function frame(dt: number, t: number): void {
     const left = world.preload(view.sim, 24);
     store.patch({ loading: 1 - left / total });
     if (left === 0) store.patch({ screen: 'play', loading: 1 });
-    world.sync(view.sim, t, dt);
+    world.sync(view.sim, t, dt, true);
     return;
   }
   if (view.screen !== 'play') { world.sync(view.sim, t, dt); return; }
+  // panels: their keys toggle them; Escape closes whatever is open (a panel, then a shop)
+  for (const p of ['bag', 'journal', 'map'] as const) if (input.pressed(p) && !view.sim.talk) openPanel(p);
+  if (input.pressed('back')) { if (store.get().panel) openPanel(null); else if (view.sim.shop) queue({ close: true }); }
+  if (store.get().panel) { world.sync(view.sim, t, dt); queued = {}; acc = 0; return; }
   const v = input.vector();
   let s = view.sim;
   const before = s;
   let act = input.pressed('act') || !!queued.act;
-  const extra = { pick: queued.pick, answer: queued.answer };
+  const extra: Partial<Input> = { pick: queued.pick, answer: queued.answer, buy: queued.buy, close: queued.close };
   queued = {};
   for (acc += dt * 1000; acc >= STEP_MS; acc -= STEP_MS) {
     // the stick is screen-relative; the camera looks north, so screen up is −z
-    s = step(s, { x: v.x, z: v.y, run: input.down('run'), act, ...extra }, level);
-    act = false; extra.pick = undefined; extra.answer = undefined;
+    s = step(s, { x: v.x, z: v.y, run: input.down('run'), act, ...extra });
+    act = false;
+    extra.pick = extra.answer = extra.buy = undefined;
+    extra.close = undefined;
+    if (s.district !== before.district) break;
   }
   if (s !== before) {
     if (!moved && (v.x || v.y)) { moved = true; analytics.step('boot', 'first_move'); }
     onStory(before, s);
     store.patch({ sim: s, touch: input.device() === 'touch' });
   }
+  if (s.district !== before.district) { acc = 0; load(s); return; }
   world.sync(s, t, dt);
   // the action prompt: what "act" would do, floating over the hero
-  if (!s.talk) {
-    const it = nearestInteractable(interactables(level), { x: s.hero.x, z: s.hero.z }, { x: Math.sin(s.facing), z: Math.cos(s.facing) });
+  if (!s.talk && !s.shop) {
+    const it = nearestInteractable(interactables(world.level!, s), { x: s.hero.x, z: s.hero.z }, { x: Math.sin(s.facing), z: Math.cos(s.facing) });
     const p = it ? world.heroScreen(s) : null;
     const cur = store.get().prompt;
     if (!it || !p) { if (cur) store.patch({ prompt: null }); }
@@ -124,14 +188,43 @@ function onStory(before: State, s: State): void {
     if (f === 'foundTablet') analytics.step('ftue', 'found_tablet');
   }
   if (s.objective !== before.objective && s.objective === 'ferox') analytics.step('ftue', 'found_house');
-  // save when the story moves (a flag, an objective, an answer) or a conversation ends
-  if (gained.length || s.objective !== before.objective || s.answers.length !== before.answers.length || (before.talk && !s.talk)) persist(s);
+  // what just happened, as toasts: things gained, coins, quests moving on, a new part of town
+  for (const id of Object.keys(ITEMS) as ItemId[]) {
+    const n = (s.items[id] ?? 0) - (before.items[id] ?? 0);
+    if (n > 0) {
+      const it = ITEMS[id];
+      toast({ kind: 'item', item: id, la: n > 1 ? it.plural ?? it.la : it.la, text: { en: `+${n} ${it.en}`, fr: `+${n} ${it.fr}` } });
+      if (before.shop) analytics.track('buy', { item: id, shop: before.shop });
+    }
+  }
+  const dc = s.coins - before.coins;
+  if (dc > 0) toast({ kind: 'coins', text: { en: `+${dc} ${dc === 1 ? 'as' : 'asses'}`, fr: `+${dc} as` } });
+  for (const [id, stage] of Object.entries(s.quests)) {
+    if (before.quests[id] === stage) continue;
+    const q = QUESTS[id];
+    if (!q) continue;
+    const started = before.quests[id] === undefined, done = stage === 'done';
+    toast({ kind: 'quest', la: q.title.la, text: started ? { en: `New task: ${q.title.en}`, fr: `Nouvelle tâche : ${q.title.fr}` } : done ? { en: `Done: ${q.title.en}`, fr: `Terminé : ${q.title.fr}` } : { en: q.stages[stage].en, fr: q.stages[stage].fr } });
+    analytics.track('quest', { quest: id, stage });
+  }
+  if (s.district !== before.district) {
+    const L = district(s.district);
+    if (!before.visited.includes(s.district)) toast({ kind: 'place', text: { en: L.name.en, fr: L.name.fr } });
+    analytics.track('travel', { to: s.district, first: !before.visited.includes(s.district) });
+  }
+  // save when the story moves (a flag, an objective, an answer, a quest, the purse or satchel, a new district) or a conversation ends
+  const moved = gained.length || s.objective !== before.objective || s.answers.length !== before.answers.length || (before.talk && !s.talk)
+    || s.district !== before.district || s.coins !== before.coins || s.items !== before.items || s.quests !== before.quests;
+  if (moved) persist(s);
 }
 
 function persist(s: State): void {
   const save: Save = {
     ...store.get().save,
-    story: { flags: s.flags, objective: s.objective, answers: s.answers, seen: s.seen, at: { x: s.hero.x, y: s.hero.y, z: s.hero.z, facing: s.facing }, ferox: s.ferox.mode },
+    story: {
+      flags: s.flags, objective: s.objective, answers: s.answers, seen: s.seen, at: { x: s.hero.x, y: s.hero.y, z: s.hero.z, facing: s.facing },
+      ferox: s.ferox.mode, district: s.district, feroxDistrict: s.ferox.district, coins: s.coins, items: s.items, quests: s.quests, visited: s.visited,
+    },
   };
   store.patch({ save });
   void saveGame(SAVE, save);

@@ -1,17 +1,23 @@
 /**
- * The town on screen: the level's voxels, trees in the wind, props, water, fires and smoke, the gate's
- * upper mass that steps aside when the hero walks under it, and the bay and Vesuvius beyond. Reads the
- * level; never writes it (or the sim).
+ * A district on screen: the level's voxels, trees in the wind, props, water, fires and smoke, things lying
+ * in the street, the gate's upper mass that steps aside when the hero walks under it; around it the ring
+ * of city and country at 1/2 m so the streets never end in empty air; the bay (where there is one) and
+ * Vesuvius beyond. One per district: the world makes a new one on arrival and disposes the last.
+ * Reads the level; never writes it (or the sim).
  */
 import * as THREE from 'three';
 import {
-  Emitters, Environment, LOOK, Lamps, MOODS, Particles, Water, WorldView, glowLook, modelGroup, voxelLook, type EmitterSource, type LampSource, type Mood,
+  Emitters, Environment, LOOK, Lamps, Particles, Water, WorldView, glowLook, modelGroup, voxelLook, type EmitterSource, type LampSource,
 } from 'ymir/three';
 import { model, type Model } from 'ymir/voxel';
 import { P, VOX, h3, vary } from '../art/palette';
 import { amphora, bench, crate, ship } from '../art/props';
 import { cypress, fig, olive, oleander, pergola, stonePine, tuft } from '../art/nature';
-import type { Level } from '../level/portaMarina';
+import type { Level } from '../level/types';
+import { RING_VOX, ringWorld } from '../art/city';
+import { itemModel } from '../art/items';
+import { PEOPLE_VOX } from '../art/people';
+import type { ItemId } from '../content/items';
 import { Backdrop } from './backdrop';
 
 const TREES: Record<string, (v: number) => Model> = { pine: stonePine, cypress, olive, fig, oleander, tuft };
@@ -37,31 +43,41 @@ const PROPS: Record<string, (v: number) => Model> = {
   pergola: (v) => pergola(30 + v * 6, 14, v), ship: () => ship(), grapes: () => crate('grapes'), figs: () => crate('figs'), fish: () => crate('fish'),
 };
 
-export interface TownOptions { mood?: Mood; plume?: number }
+export interface TownOptions { plume?: number }
 
 export class TownView {
-  readonly env: Environment;
+  readonly root = new THREE.Group();
   readonly backdrop: Backdrop;
   readonly particles = new Particles();
   readonly emitters: Emitters;
   readonly lamps: Lamps;
   private view: WorldView;
+  private ring: WorldView;
   private occluders: { id: string; view: WorldView; box: [number, number, number, number]; mat: THREE.MeshLambertMaterial; shown: number }[] = [];
   private waters: Water[] = [];
+  private pickups: { id: string; g: THREE.Group; y: number; seed: number }[] = [];
+  private mats: THREE.Material[] = [];
   private look = voxelLook({ voxel: VOX });
+  private ringLook = voxelLook({ voxel: RING_VOX, edges: 0.06 });
   private glow = glowLook();
   /** Where the world starts to curve away, as a fraction of the camera's distance to the focus. */
   bendFrom = 0.9;
 
-  constructor(readonly scene: THREE.Scene, renderer: THREE.WebGLRenderer, readonly level: Level, o: TownOptions = {}) {
-    this.env = new Environment(scene, { mood: o.mood ?? MOODS.morning, renderer, shadowExtent: 18, horizon: 0.55 });
+  constructor(readonly scene: THREE.Scene, readonly env: Environment, readonly level: Level, o: TownOptions = {}) {
+    scene.add(this.root);
+    this.mats.push(this.look, this.ringLook, this.glow);
     this.view = new WorldView(level.world, { scale: VOX, solid: this.look, glow: this.glow });
-    scene.add(this.view.group);
+    this.root.add(this.view.group);
+    // the city around: built once per district (a second or so, behind the loading screen)
+    this.ring = new WorldView(ringWorld(level.width * VOX, level.depth * VOX, level.ring), { scale: RING_VOX, solid: this.ringLook });
+    this.ring.group.traverse((c) => { c.receiveShadow = true; });
+    this.root.add(this.ring.group);
     for (const oc of level.occluders) {
       const mat = voxelLook({ voxel: VOX });
       mat.transparent = true;
+      this.mats.push(mat);
       const view = new WorldView(oc.world, { scale: VOX, solid: mat, glow: this.glow });
-      scene.add(view.group);
+      this.root.add(view.group);
       this.occluders.push({ id: oc.id, view, box: [oc.x0, oc.x1, oc.z0, oc.z1], mat, shown: 1 });
     }
     // trees: one material per kind (each sways from its own height)
@@ -69,21 +85,40 @@ export class TownView {
     for (const t of level.trees) {
       const [sway, base] = SWAY[t.kind] ?? [0.02, 0];
       let mat = mats.get(t.kind);
-      if (!mat) { mat = voxelLook({ voxel: VOX, sway, swayBase: base * VOX }); mats.set(t.kind, mat); }
-      const g = modelGroup(`tree:${t.kind}:${t.variant}`, () => TREES[t.kind](t.variant), VOX, { solid: mat });
+      if (!mat) { mat = voxelLook({ voxel: VOX, sway, swayBase: base * VOX }); mats.set(t.kind, mat); this.mats.push(mat); }
+      const make = TREES[t.kind];
+      if (!make) continue;
+      const g = modelGroup(`tree:${t.kind}:${t.variant}`, () => make(t.variant), VOX, { solid: mat });
       g.position.set(t.x * VOX, t.y * VOX, t.z * VOX);
       g.rotation.y = h3(t.x, 0, t.z) * Math.PI * 2;
       g.traverse((c) => { c.castShadow = t.kind !== 'tuft'; c.receiveShadow = true; });
-      scene.add(g);
+      this.root.add(g);
     }
     for (const p of level.props) {
+      if (p.kind === 'talus') continue; // drawn as a pickup below
       const make = PROPS[p.kind];
       if (!make) continue;
       const g = modelGroup(`prop:${p.kind}:${p.variant}`, () => make(p.variant), VOX, { solid: p.kind === 'pergola' ? (mats.get('oleander') ?? this.look) : this.look });
       g.position.set(p.x * VOX, p.y * VOX, p.z * VOX);
       g.rotation.y = ((p.rotate ?? 0) * Math.PI) / 2;
       g.traverse((c) => { c.castShadow = true; c.receiveShadow = true; });
-      scene.add(g);
+      this.root.add(g);
+    }
+    // things to pick up: the item's own little model, turning slowly with a glint so the eye finds it
+    const itemLook = voxelLook({ voxel: PEOPLE_VOX, edges: 0.08, rim: 0.6 });
+    this.mats.push(itemLook);
+    for (const sp of level.spots) {
+      if (sp.verb !== 'take') continue;
+      const item = sp.id.split(':')[1] as ItemId;
+      const g = new THREE.Group();
+      g.scale.setScalar(1.6); // a little larger than life, so the eye finds it on the paving
+      const m = modelGroup(`item:${item}`, () => itemModel(item), PEOPLE_VOX, { solid: itemLook });
+      m.traverse((c) => { c.castShadow = true; });
+      g.add(m);
+      const y = level.groundAt(sp.x, sp.z) * VOX + 0.05;
+      g.position.set(sp.x * VOX, y, sp.z * VOX);
+      this.root.add(g);
+      this.pickups.push({ id: sp.id, g, y, seed: h3(sp.x, 1, sp.z) * 6 });
     }
     for (const a of level.water) {
       const water = new Water({
@@ -91,7 +126,7 @@ export class TownView {
         floor: () => a.floor * VOX, resolution: 8, scale: 0.25, foam: a.kind === 'fountain' ? 0.25 : 0.1, deepAt: 0.5,
         shallow: a.kind === 'impluvium' ? 0x5fb8c0 : 0x52c4c8, deep: 0x2a7f9a,
       });
-      scene.add(water.mesh);
+      this.root.add(water.mesh);
       this.waters.push(water);
     }
     // fires light their corner; smoke and steam rise; fountains run
@@ -103,7 +138,7 @@ export class TownView {
         : { color: 0xff9a4a, intensity: 4, range: 4, flicker: 0.8, day: 0.35 }),
     });
     this.lamps = new Lamps(level.fires.map(lampOf), { max: 6 });
-    scene.add(this.lamps.group);
+    this.root.add(this.lamps.group);
     const sources: EmitterSource[] = [];
     for (const s of level.smoke) sources.push(s.kind === 'smoke'
       ? { kind: 'smoke', x: s.x * VOX, y: s.y * VOX, z: s.z * VOX, rate: 10, vel: [0.25, 0.5, 0.05], spread: 0.08, area: 0.2, colors: [0xcfc8bd, 0xb4ada2, 0xdcd6cc], size: 1.3, daynight: [0.8, 1.3] }
@@ -114,29 +149,43 @@ export class TownView {
     );
     for (const f of level.fires) if (f.kind !== 'lamp') sources.push({ kind: 'ember', x: f.x * VOX, y: (f.y + 2) * VOX, z: f.z * VOX, rate: 2, vel: [0, 0.6, 0], spread: 0.15, colors: [0xffb050, 0xff7a30], dims: false, daynight: [0.5, 1.5] });
     this.emitters = new Emitters(this.particles, sources);
-    scene.add(this.particles.mesh);
-    this.backdrop = new Backdrop(scene, { scale: 0.5, west: -6, south: 110, seaLevel: -0.8, mapW: level.width * VOX, mapD: level.depth * VOX, wallX: 24 });
+    this.root.add(this.particles.mesh);
+    const sea = level.sea ? { west: level.sea.west, south: 110, level: level.sea.level } : undefined;
+    this.backdrop = new Backdrop(scene, { scale: 0.5, sea, mapW: level.width * VOX, mapD: level.depth * VOX, wallX: 24 });
     this.backdrop.setPlume(o.plume ?? 0.05);
   }
 
-  /** Mesh nearest the focus (voxels), within a budget. Returns chunks still waiting. */
-  sync(focusVox: { x: number; y: number; z: number }, budgetMs = 4): number {
+  /**
+   * Mesh nearest the focus (voxels), within a budget. Returns the district's chunks still waiting: the
+   * loading screen waits for those; the ring of city beyond streams in after, nearest first.
+   */
+  sync(focusVox: { x: number; y: number; z: number }, budgetMs = 4, ring = true): number {
     this.view.focus(focusVox.x, focusVox.y, focusVox.z);
+    const t0 = performance.now();
     let pending = this.view.sync(budgetMs).pending;
     for (const o of this.occluders) pending += o.view.sync(1).pending;
+    const k = VOX / RING_VOX;
+    this.ring.focus(focusVox.x * k, focusVox.y * k, focusVox.z * k);
+    if (ring) this.ring.sync(Math.max(1, budgetMs - (performance.now() - t0)));
     return pending;
   }
-  syncAll(): void { this.view.syncAll(); for (const o of this.occluders) o.view.syncAll(); }
+  syncAll(): void { this.view.syncAll(); this.ring.syncAll(); for (const o of this.occluders) o.view.syncAll(); }
 
-  /** Per frame: sky and shadows on the focus (world units), lamps, smoke, the gate stepping aside. */
-  update(dt: number, focus: THREE.Vector3, camera: THREE.PerspectiveCamera, heroVox: { x: number; z: number }): void {
-    this.env.update(dt, focus, camera, 0.35);
+  /** Per frame: lamps, smoke, the curve, the mountain, pickups turning (taken ones gone), the gate stepping aside. */
+  update(dt: number, focus: THREE.Vector3, camera: THREE.PerspectiveCamera, heroVox: { x: number; z: number }, taken: (id: string) => boolean): void {
     LOOK.uBendFrom.value = camera.position.distanceTo(focus) * this.bendFrom;
     this.lamps.update(dt, focus);
     this.emitters.update(dt, focus, LOOK.uNight.value, 30);
     this.particles.update(dt);
     const dip = this.backdrop.update(camera, camera.position.y - focus.y);
     if (this.env.sky) this.env.sky.uniforms.uDip.value = -dip;
+    const t = LOOK.uTime.value;
+    for (const p of this.pickups) {
+      p.g.visible = !taken(p.id);
+      if (!p.g.visible) continue;
+      p.g.rotation.y = t * 0.8 + p.seed;
+      p.g.position.y = p.y + 0.06 + Math.sin(t * 2.2 + p.seed) * 0.04;
+    }
     for (const o of this.occluders) {
       const [x0, x1, z0, z1] = o.box;
       const under = heroVox.x >= x0 && heroVox.x <= x1 && heroVox.z >= z0 && heroVox.z <= z1;
@@ -149,12 +198,14 @@ export class TownView {
 
   dispose(): void {
     this.view.dispose();
-    for (const o of this.occluders) { o.view.dispose(); o.mat.dispose(); }
+    this.ring.dispose();
+    for (const o of this.occluders) o.view.dispose();
     for (const w of this.waters) w.dispose();
+    for (const m of this.mats) m.dispose();
     this.backdrop.dispose();
     this.lamps.dispose();
     this.particles.dispose();
-    this.env.dispose();
+    this.root.removeFromParent();
   }
 }
 

@@ -6,10 +6,11 @@
  */
 import * as THREE from 'three';
 import { applyPose, breathe, makeRig, rest, talk, walk, work, voxelLook, type Pose, type Rig, modelGroup } from 'ymir/three';
-import { CAST, PEOPLE_VOX, buildOf, kitOf, type Person } from '../art/people';
+import { PEOPLE_VOX, buildOf, kitOf, personFor, type Person } from '../art/people';
 import { DOG, dogBody, dogHead, dogLeg, dogTail } from '../art/dog';
 import { VOX } from '../art/palette';
-import type { Npc } from '../level/portaMarina';
+import type { Level, Npc, Walker } from '../level/types';
+import { walkerAt } from '../sim/sim';
 
 const look = voxelLook({ voxel: PEOPLE_VOX, edges: 0.08 });
 
@@ -83,39 +84,78 @@ export function npcPose(pose: Npc['pose'], t: number, seed: number, talking: boo
   }
 }
 
+interface Person3 { id: string; who: string; rig: Rig; seed: number; facing: number; npc?: Npc; walker?: Walker }
+
+/**
+ * Everyone in a district: the cast and townsfolk standing at their work, the walkers on their loops (where
+ * `walkerAt` says they are at the sim's walk clock), and Ferox. One per district, like the TownView.
+ */
 export class Townsfolk {
   readonly group = new THREE.Group();
-  private rigs: { npc: Npc; rig: Rig; seed: number; facing: number }[] = [];
+  readonly people: Person3[] = [];
   readonly ferox: DogRig;
 
-  constructor(npcs: Npc[], groundAt: (x: number, z: number) => number) {
-    for (const [i, npc] of npcs.entries()) {
+  constructor(readonly level: Level) {
+    let i = 0;
+    for (const npc of level.npcs) {
       if (npc.who === 'Ferox') continue;
-      const p = CAST[npc.who];
+      const p = personFor(npc.who);
       if (!p) continue;
       const rig = personRig(npc.who, p);
-      rig.root.position.set(npc.x * VOX, groundAt(npc.x, npc.z) * VOX, npc.z * VOX);
+      rig.root.position.set(npc.x * VOX, level.groundAt(npc.x, npc.z) * VOX, npc.z * VOX);
       rig.root.rotation.y = npc.facing;
       this.group.add(rig.root);
-      this.rigs.push({ npc, rig, seed: i * 1.7, facing: npc.facing });
+      this.people.push({ id: npc.id, who: npc.who, npc, rig, seed: i++ * 1.7, facing: npc.facing });
+    }
+    for (const w of level.walkers) {
+      const p = personFor(w.who);
+      if (!p) continue;
+      const rig = personRig(w.who, p);
+      this.group.add(rig.root);
+      this.people.push({ id: w.id, who: w.who, walker: w, rig, seed: i++ * 1.7, facing: 0 });
     }
     this.ferox = dogRig();
     this.group.add(this.ferox.root);
   }
 
-  /** Pose everyone; whoever is within reach of the hero turns to look. `talking` is who the hero speaks with. */
-  update(dt: number, t: number, hero: { x: number; z: number }, talking: string | null): void {
-    for (const r of this.rigs) {
-      const dx = hero.x - r.npc.x, dz = hero.z - r.npc.z;
-      const near = dx * dx + dz * dz < 40 * 40 && r.npc.pose !== 'work';
-      const want = near ? Math.atan2(dx, dz) : r.npc.facing;
+  /** Where someone's head is (world units), for their name tag. */
+  headOf(p: Person3): { x: number; y: number; z: number } {
+    const r = p.rig.root.position;
+    return { x: r.x, y: r.y + p.rig.height + 0.15, z: r.z };
+  }
+
+  /**
+   * Pose everyone. Standing people turn to look at a hero who comes near; walkers walk their loop at the
+   * sim's walk clock (it stops while the hero talks or shops) and stop to face the hero when spoken to.
+   */
+  update(dt: number, t: number, hero: { x: number; z: number }, talking: string | null, clock: number, paused: boolean): void {
+    for (const r of this.people) {
+      if (r.walker) {
+        const at = walkerAt(r.walker, clock);
+        r.rig.root.position.set(at.x * VOX, this.level.groundAt(at.x, at.z) * VOX, at.z * VOX);
+        const talks = talking === r.id;
+        const want = talks ? Math.atan2(hero.x - at.x, hero.z - at.z) : at.facing;
+        let d = want - r.facing;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        r.facing += d * Math.min(1, dt * 6);
+        r.rig.root.rotation.y = r.facing;
+        const stride = (clock / 1000) * (r.walker.speed / 13) * 1.6 + r.seed;
+        applyPose(r.rig, talks ? talk(t, r.seed) : paused ? breathe(t, r.seed) : walk(stride, Math.min(1, r.walker.speed / 13)));
+        continue;
+      }
+      const npc = r.npc!;
+      const dx = hero.x - npc.x, dz = hero.z - npc.z;
+      const near = dx * dx + dz * dz < 40 * 40 && npc.pose !== 'work';
+      const want = near ? Math.atan2(dx, dz) : npc.facing;
       let d = want - r.facing;
       d = Math.atan2(Math.sin(d), Math.cos(d));
       r.facing += d * Math.min(1, dt * 4);
       r.rig.root.rotation.y = r.facing;
-      applyPose(r.rig, npcPose(r.npc.pose, t, r.seed, talking === r.npc.id));
+      applyPose(r.rig, npcPose(npc.pose, t, r.seed, talking === npc.id));
     }
   }
+
+  dispose(): void { this.group.removeFromParent(); }
 }
 
 export { walk };

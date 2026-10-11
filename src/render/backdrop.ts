@@ -11,7 +11,7 @@
  * Vesuvius" fresco from the House of the Centenary shows it so); Somma's ridge is the old rim to its north.
  */
 import * as THREE from 'three';
-import { LOOK, Water, WorldView, modelGroup, voxelLook } from 'ymir/three';
+import { LOOK, Water, WorldView, bendable, modelGroup, voxelLook } from 'ymir/three';
 import { VoxelWorld, model } from 'ymir/voxel';
 import { P, h3, mixc, noise2, tint } from '../art/palette';
 
@@ -110,27 +110,40 @@ const vineRow = (_x: number, z: number, n: number) => n > 0.45 && n < 0.62 && ((
 
 export class Backdrop {
   readonly group = new THREE.Group();
-  readonly sea: Water;
+  /** The bay, where the district has a shore; inland, a plain of hazy land under the ring of city. */
+  readonly sea: Water | null;
+  private plain: THREE.Mesh | null = null;
   private mountain: THREE.Group;
   private plumeGroup: THREE.Group | null = null;
   private plumeSize = -1;
   private mat: THREE.MeshLambertMaterial;
   readonly land: WorldView;
 
-  constructor(scene: THREE.Scene, private o: { scale: number; west: number; south: number; seaLevel: number; mapW: number; mapD: number; wallX: number }) {
+  constructor(scene: THREE.Scene, private o: { scale: number; sea?: { west: number; south: number; level: number }; mapW: number; mapD: number; wallX: number }) {
     // The land beyond the map (`farLand`) stays off: with the world's curve it is over the horizon, and
     // near the map's edges it read as a floating slab. The sea and the mountain carry the distance.
     this.land = new WorldView(new VoxelWorld(), { scale: 2 });
     void farLand;
     // The sea: a wide bent plane west and south of the town; its floor slopes down from the shore.
     const span = 1600;
-    this.sea = new Water({
-      x: o.west - span, z: -span / 2, width: span * 2, depth: span * 2, level: o.seaLevel,
-      floor: (x, z) => o.seaLevel - Math.min(12, 1 + Math.max(0, o.west - x, z - o.south) * 0.08),
-      resolution: 0.08, scale: 3, shallow: 0x46b8c4, deep: 0x1d5f8f, deepAt: 6, foam: 0.6,
-    });
-    this.sea.mesh.renderOrder = 1;
-    scene.add(this.sea.mesh);
+    const sea = o.sea;
+    if (sea) {
+      this.sea = new Water({
+        x: sea.west - span, z: -span / 2, width: span * 2, depth: span * 2, level: sea.level,
+        floor: (x, z) => sea.level - Math.min(12, 1 + Math.max(0, sea.west - x, z - sea.south) * 0.08),
+        resolution: 0.08, scale: 3, shallow: 0x46b8c4, deep: 0x1d5f8f, deepAt: 6, foam: 0.6,
+      });
+      this.sea.mesh.renderOrder = 1;
+      scene.add(this.sea.mesh);
+    } else {
+      // inland: the far city and fields as one hazy plain, just under the ring's ground, rolling over the horizon
+      this.sea = null;
+      const geo = new THREE.PlaneGeometry(span * 2, span * 2, 64, 64).rotateX(-Math.PI / 2);
+      this.plain = new THREE.Mesh(geo, bendable(new THREE.MeshLambertMaterial({ color: 0x9a8a68 })));
+      this.plain.position.set(o.mapW / 2, -1.5, o.mapD / 2);
+      this.plain.receiveShadow = true;
+      scene.add(this.plain);
+    }
     // Vesuvius: lit, but without fog (the haze is painted in) and without the curve (it sits on the horizon).
     this.mat = voxelLook({ voxel: 1, edges: 0, rim: 0.25, bend: false });
     // a sky layer: drawn after the dome and before the town, so the town covers it wherever it rises
@@ -196,7 +209,10 @@ export class Backdrop {
     return ahead.y;
   }
 
-  dispose(): void { this.sea.dispose(); this.land.dispose(); this.group.removeFromParent(); this.mat.dispose(); }
+  dispose(): void {
+    this.sea?.dispose();
+    if (this.plain) { this.plain.removeFromParent(); this.plain.geometry.dispose(); (this.plain.material as THREE.Material).dispose(); }
+    this.land.dispose(); this.group.removeFromParent(); this.mat.dispose(); }
 }
 
 export const SEA_COLOR = P.sea;

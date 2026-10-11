@@ -234,10 +234,10 @@ export function buildPortaMarina(): Level {
   );
   L.walkers.push(
     { id: 'sailor', who: 'nauta:0', path: [[30, 236], [170, 236], [170, 228], [30, 228]], speed: 11, phase: 0 },
-    { id: 'girl', who: 'puella:1', path: [[260, 194], [620, 194], [620, 196], [260, 196]], speed: 9, phase: 120 },
+    { id: 'girl', who: 'puella:1', path: [[260, 206], [620, 206], [620, 208], [260, 208]], speed: 9, phase: 120 },
     { id: 'grandmother', who: 'avia:0', path: [[270, 236], [600, 236], [600, 238], [270, 238]], speed: 6, phase: 40 },
     { id: 'merchant', who: 'mercator:2', path: [[300, 212], [630, 212], [630, 220], [300, 220]], speed: 10, phase: 300 },
-    { id: 'woman', who: 'femina:4', path: [[486, 120], [486, 186], [560, 194], [486, 194]], speed: 8, phase: 0 },
+    { id: 'woman', who: 'femina:4', path: [[486, 120], [486, 182], [474, 186], [474, 206], [560, 206], [560, 210], [476, 210], [476, 188], [486, 184]], speed: 8, phase: 0 },
   );
   return L;
 

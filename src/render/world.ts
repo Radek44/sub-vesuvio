@@ -1,66 +1,140 @@
 /**
- * The world: draws the sim and never changes it. ymir/three `Stage` owns the renderer; `TownView` the
- * town; `Townsfolk` the people and Ferox; this file the hero, the camera and the glue. The camera is the
+ * The world: draws the sim and never changes it. ymir/three `Stage` owns the renderer; the sky, sun and
+ * camera last the whole game; each district brings its own `TownView` (the town and the ring of city
+ * around it) and `Townsfolk` (its people and Ferox), made on arrival and disposed on leaving. This file
+ * is the hero, the camera, the name tags and shop signs over the street, and the glue. The camera is the
  * classic three-quarter view looking north, so Vesuvius rises behind the town on the curved horizon.
  */
 import * as THREE from 'three';
-import { Anchors, FollowCamera, LOOK, Stage, applyPose, breathe, createPost, talk, walk, type Rig } from 'ymir/three';
-import { CAST } from '../art/people';
+import { Anchors, Environment, FollowCamera, LOOK, Stage, applyPose, breathe, createPost, talk, walk, type Rig } from 'ymir/three';
+import { CAST, tagFor } from '../art/people';
 import { VOX } from '../art/palette';
-import type { Level } from '../level/portaMarina';
-import { TALK_TO } from '../content/prologue';
-import { groundAt, WALK, type State } from '../sim/sim';
+import type { Level } from '../level/types';
+import { WALK, type State } from '../sim/sim';
 import { personRig, poseDog, Townsfolk } from './actors';
 import { BAY } from './moods';
 import { TownView } from './town';
 
 export interface WorldOptions { quality?: 'high' | 'balanced' | 'low'; plume?: number }
 
+/** How near (voxels) a name tag starts to show, and is fully shown. */
+const TAG_FAR = 96, TAG_NEAR = 64;
+const SIGN_FAR = 150, SIGN_NEAR = 110;
+
+const cap = (s: string) => s.charAt(0).toLocaleUpperCase() + s.slice(1);
+const el = (cls: string, html: string): HTMLElement => {
+  const d = document.createElement('div');
+  d.className = cls;
+  d.innerHTML = html;
+  return d;
+};
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+interface Label { el: HTMLElement; at: () => { x: number; y: number; z: number }; near: number; far: number; dog?: boolean; unbind: () => void }
+
 export class World {
   readonly stage: Stage;
-  readonly town: TownView;
-  readonly folk: Townsfolk;
+  readonly env: Environment;
   readonly anchors: Anchors;
   readonly camera = new THREE.PerspectiveCamera(30, 1, 0.5, 2000);
+  town: TownView | null = null;
+  folk: Townsfolk | null = null;
+  level: Level | null = null;
   private follow = new FollowCamera(this.camera, { distance: 26, pitch: 0.82, deadZone: 0.8, lag: 5 });
   private hero: Rig;
+  private heroHat: Rig;
   private started = false;
   private focus = new THREE.Vector3();
   private walkT = 0;
+  private layer: HTMLElement;
+  private labels: Label[] = [];
 
-  constructor(host: HTMLElement, readonly level: Level, o: WorldOptions = {}) {
+  constructor(host: HTMLElement, private o: WorldOptions = {}) {
     const phone = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
     this.stage = new Stage(host, {
       camera: this.camera, quality: o.quality ?? (phone ? 'balanced' : 'high'), toneMapping: THREE.ACESFilmicToneMapping,
       post: createPost({ tiltShift: { amount: 2, focus: 0.42, band: 0.2 }, grade: { saturation: 1.1, warmth: 0.18, vignette: 0.3 } }),
     });
-    this.town = new TownView(this.stage.scene, this.stage.renderer, level, { mood: BAY.arrival, plume: o.plume ?? 0.05 });
+    this.env = new Environment(this.stage.scene, { mood: BAY.arrival, renderer: this.stage.renderer, shadowExtent: 18, horizon: 0.55 });
     LOOK.uBend.value = 0.05;
-    this.folk = new Townsfolk(level.npcs, (x, z) => groundAt(level, x, z));
-    this.stage.scene.add(this.folk.group);
     this.hero = personRig('hero', CAST.hero);
-    this.stage.scene.add(this.hero.root);
+    this.heroHat = personRig('hero:hat', { ...CAST.hero, hat: 0xc9a868 });
+    this.stage.scene.add(this.hero.root, this.heroHat.root);
     this.anchors = new Anchors((x, y, z) => this.stage.toScreen(x, y, z));
+    this.layer = el('tags', '');
+    host.appendChild(this.layer);
   }
 
+  /** Show a district: dispose the last one's town and people, build this one's (behind a loading screen). */
+  setLevel(level: Level): void {
+    if (this.level === level) return;
+    this.town?.dispose();
+    this.folk?.dispose();
+    for (const l of this.labels) { l.unbind(); l.el.remove(); }
+    this.labels = [];
+    this.level = level;
+    this.town = new TownView(this.stage.scene, this.env, level, { plume: this.o.plume ?? 0.05 });
+    this.folk = new Townsfolk(level);
+    this.stage.scene.add(this.folk.group);
+    this.started = false;
+    // name tags: a name for the cast, the Latin for what they are (and its meaning) for everyone else
+    for (const p of this.folk.people) {
+      const t = tagFor(p.who);
+      const html = t.name ? `<b>${esc(t.name)}</b>` : `<b lang="la">${esc(cap(t.la ?? ''))}</b><small class="en">${esc(t.en ?? '')}</small><small class="fr">${esc(t.fr ?? '')}</small>`;
+      this.label(el(`tag${t.name ? ' named' : ''}`, html), () => this.folk!.headOf(p), TAG_NEAR, TAG_FAR);
+    }
+    this.label(el('tag named dog', '<b>Ferox</b>'), () => {
+      const r = this.folk!.ferox.root.position;
+      return { x: r.x, y: r.y + 0.75, z: r.z };
+    }, TAG_NEAR, TAG_FAR, true);
+    // shop signs: the painted Latin over the counter, and whose shop it is
+    for (const s of level.shops) {
+      const y = level.groundAt(s.x, s.z) * VOX + 2.6;
+      this.label(el('sign', `<b lang="la">${esc(s.sign)}</b><small class="en">${esc(s.name.en)}</small><small class="fr">${esc(s.name.fr)}</small>`),
+        () => ({ x: s.x * VOX, y, z: s.z * VOX }), SIGN_NEAR, SIGN_FAR);
+    }
+    // where the streets go: a waymarker at each exit
+    for (const e of level.exits) {
+      const x = (e.x0 + e.x1) / 2, z = (e.z0 + e.z1) / 2;
+      const y = level.groundAt(x, z) * VOX + 1.6;
+      this.label(el('way', `<span class="en">${esc(e.label.en)}</span><span class="fr">${esc(e.label.fr)}</span>`), () => ({ x: x * VOX, y, z: z * VOX }), SIGN_NEAR, SIGN_FAR);
+    }
+  }
+
+  private label(e: HTMLElement, at: () => { x: number; y: number; z: number }, near: number, far: number, dog = false): void {
+    this.layer.appendChild(e);
+    this.labels.push({ el: e, at, near, far, dog, unbind: this.anchors.bind(e, at) });
+  }
+
+  setLang(lang: 'en' | 'fr'): void { this.layer.dataset.lang = lang; }
+
   /** Mesh what's near the hero now (a loading screen calls this until it returns 0). */
-  preload(s: State, budgetMs = 30): number { return this.town.sync({ x: s.hero.x, y: s.hero.y, z: s.hero.z }, budgetMs); }
+  preload(s: State, budgetMs = 30): number { return this.town ? this.town.sync({ x: s.hero.x, y: s.hero.y, z: s.hero.z }, budgetMs, false) : 1; }
 
   /** Make the scene match the state. */
-  sync(s: State, t: number, dt: number): void {
+  sync(s: State, t: number, dt: number, loading = false): void {
+    const town = this.town, folk = this.folk;
+    if (!town || !folk) return;
     const h = s.hero;
-    this.town.sync({ x: h.x, y: h.y, z: h.z }, 4);
-    // the hero
-    this.hero.root.position.set(h.x * VOX, h.y * VOX, h.z * VOX);
-    let d = s.facing - this.hero.root.rotation.y;
+    town.sync({ x: h.x, y: h.y, z: h.z }, 4, !loading);
+    // the hero (in the petasus, once the old man has given it)
+    const hatted = !!s.items.hat;
+    this.hero.root.visible = !hatted;
+    this.heroHat.root.visible = hatted;
+    const rig = hatted ? this.heroHat : this.hero;
+    rig.root.position.set(h.x * VOX, h.y * VOX, h.z * VOX);
+    let d = s.facing - rig.root.rotation.y;
     d = Math.atan2(Math.sin(d), Math.cos(d));
-    this.hero.root.rotation.y += d * Math.min(1, dt * 12);
-    const moving = s.speed > 1 && !s.talk;
+    rig.root.rotation.y += d * Math.min(1, dt * 12);
+    (hatted ? this.hero : this.heroHat).root.rotation.y = rig.root.rotation.y;
+    const busy = !!s.talk || !!s.shop;
+    const moving = s.speed > 1 && !busy;
     this.walkT += dt * (s.speed / WALK);
-    applyPose(this.hero, s.talk ? talk(t, 0.3) : moving ? walk(this.walkT, Math.min(1, s.speed / WALK)) : breathe(t, 0.3));
-    // Ferox
+    applyPose(rig, s.talk ? talk(t, 0.3) : moving ? walk(this.walkT, Math.min(1, s.speed / WALK)) : breathe(t, 0.3));
+    // Ferox, when he's in this district
     const f = s.ferox;
-    const dog = this.folk.ferox;
+    const dog = folk.ferox;
+    dog.root.visible = f.district === s.district;
     dog.root.position.set(f.body.x * VOX, f.body.y * VOX, f.body.z * VOX);
     let fd = f.facing - dog.root.rotation.y;
     fd = Math.atan2(Math.sin(fd), Math.cos(fd));
@@ -69,22 +143,38 @@ export class World {
     const mode = f.mode === 'guard' ? 'lie' : f.mode === 'sit' ? 'sit' : f.speed > 20 ? 'run' : f.speed > 2 ? 'walk' : 'stand';
     poseDog(dog, mode, t, f.speed / 20, f.mode === 'follow' ? (near ? 0.8 : 0.4) : near ? 0.2 : 0);
     // people
-    const with_ = s.talk ? this.level.npcs.find((n) => TALK_TO[n.id] === s.talk!.script)?.id ?? null : null;
-    this.folk.update(dt, t, h, with_);
+    const with_ = s.talk?.with ?? (s.shop ? this.level?.shops.find((x) => x.id === s.shop)?.keeper ?? null : null);
+    folk.update(dt, t, h, with_, s.walk, busy);
     // camera: follow the hero a little ahead of where they're walking
     const ahead = moving ? 1.2 : 0;
     this.focus.set(h.x * VOX + Math.sin(s.facing) * ahead, h.y * VOX, h.z * VOX + Math.cos(s.facing) * ahead);
     if (!this.started) { this.follow.snap(this.focus); this.started = true; }
     else this.follow.follow(this.focus, dt);
-    this.town.update(dt, this.follow.target, this.camera, { x: h.x, z: h.z });
+    this.env.update(dt, this.follow.target, this.camera, 0.35);
+    town.update(dt, this.follow.target, this.camera, { x: h.x, z: h.z }, (id) => s.flags.includes(`took:${id}`));
+    // labels fade in as the hero comes near; none while a conversation or a shop is open
+    for (const l of this.labels) {
+      const p = l.at();
+      const dist = Math.hypot(p.x / VOX - h.x, p.z / VOX - h.z);
+      const k = busy || (l.dog && f.district !== s.district) ? 0 : Math.max(0, Math.min(1, (l.far - dist) / (l.far - l.near)));
+      l.el.style.opacity = k.toFixed(2);
+    }
     this.anchors.update();
   }
 
-  /** The hero's head in screen pixels (for the action prompt). */
-  heroScreen(s: State): { x: number; y: number } {
+  /** The hero's head in screen pixels (for the action prompt), or null when it's off screen. */
+  heroScreen(s: State): { x: number; y: number } | null {
     const p = this.stage.toScreen(s.hero.x * VOX, s.hero.y * VOX + this.hero.height + 0.25, s.hero.z * VOX);
+    if (!p.visible || p.x < 0 || p.y < 0 || p.x > this.stage.width || p.y > this.stage.height) return null;
     return { x: p.x, y: p.y };
   }
 
-  dispose(): void { this.town.dispose(); this.stage.dispose(); }
+  dispose(): void {
+    this.town?.dispose();
+    this.folk?.dispose();
+    for (const l of this.labels) l.unbind();
+    this.layer.remove();
+    this.env.dispose();
+    this.stage.dispose();
+  }
 }

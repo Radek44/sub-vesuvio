@@ -7,6 +7,8 @@
 import { describe, expect, it } from 'vitest';
 import { danglingGotos, fill, scriptTexts, unreachable } from 'ymir/dialogue';
 import { SCRIPT as PROLOGUE, TALK_TO } from '../src/content';
+import { PANEL_LATIN } from '../src/content/ui';
+import { QUESTS } from '../src/content/quests';
 import { ITEMS } from '../src/content/items';
 import { TAGS } from '../src/art/people';
 import { DISTRICTS, district } from '../src/level';
@@ -70,6 +72,8 @@ describe('Latin on things', () => {
       expect({ id, issues: lintLatin(it.la, { whole: true }) }).toEqual({ id, issues: [] });
       if (it.plural) expect({ id, issues: lintLatin(it.plural, { whole: true }) }).toEqual({ id, issues: [] });
     }
+    for (const [k, la] of Object.entries(PANEL_LATIN)) expect({ k, issues: lintLatin(la, { whole: true }) }).toEqual({ k, issues: [] });
+    for (const [id, q] of Object.entries(QUESTS)) expect({ id, issues: lintLatin(q.title.la, { whole: true }) }).toEqual({ id, issues: [] });
     for (const [k, t] of Object.entries(TAGS)) expect({ k, issues: lintLatin(t.la, { whole: true }) }).toEqual({ k, issues: [] });
     for (const id of Object.keys(DISTRICTS) as (keyof typeof DISTRICTS)[]) {
       const L = district(id);

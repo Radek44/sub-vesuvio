@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { create, interactables, step, travel, walkerAt, type Input, type State } from '../src/sim/sim';
-import { district } from '../src/level';
+import { DISTRICTS, district } from '../src/level';
 import { portaMarina } from '../src/level/portaMarina';
 import { ITEMS, START_COINS } from '../src/content/items';
 import { QUESTS } from '../src/content/quests';
@@ -73,6 +73,28 @@ describe('the open city', () => {
       expect(a.x).toBeGreaterThanOrEqual(0);
       expect(a.x).toBeLessThan(level.width);
     }
+  });
+
+  it('the townsfolk walk on the ground: no step along any loop higher than a person can step', () => {
+    const all: string[] = [];
+    for (const id of Object.keys(DISTRICTS) as (keyof typeof DISTRICTS)[]) {
+      const L = district(id);
+      for (const w of L.walkers) {
+        const bad: string[] = [];
+        for (let i = 0; i < w.path.length; i++) {
+          const [ax, az] = w.path[i], [bx, bz] = w.path[(i + 1) % w.path.length];
+          const n = Math.ceil(Math.hypot(bx - ax, bz - az));
+          let last = L.groundAt(ax, az);
+          for (let k = 1; k <= n; k++) {
+            const x = ax + ((bx - ax) * k) / n, z = az + ((bz - az) * k) / n, g = L.groundAt(x, z);
+            if (Math.abs(g - last) > 3) bad.push(`${x.toFixed(0)},${z.toFixed(0)}: ${last}→${g}`);
+            last = g;
+          }
+        }
+        if (bad.length) all.push(`${id}/${w.id}: ${bad.slice(0, 3).join('; ')}`);
+      }
+    }
+    expect(all).toEqual([]);
   });
 
   it('Lucius’s knucklebones: find four, count them in Latin, get paid', () => {

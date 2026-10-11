@@ -3,28 +3,32 @@
  * and when the script waits for an answer, the answers as tablets. A wrong answer is explained, kindly,
  * and the player tries again: never a dead end, never a timer.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useStore } from 'ymir/ui';
 import { beatAt } from 'ymir/dialogue';
-import { PROLOGUE } from '../content/prologue';
+import { SCRIPT } from '../content';
 import { ctxOf } from '../sim/sim';
 import { queue, store } from '../game';
 import { fill } from 'ymir/dialogue';
 import { Text, type Gloss } from './Latin';
 import { portraits } from './portraits';
+import { nameOf, speakerOf } from './names';
+import { district } from '../level';
 import type { ChooseTask } from '../lingua';
 
-const NAMES: Record<string, string> = { you: '', Sextus: 'Sextus, the toll collector', Vibia: 'Vibia', Faustus: 'Faustus, wine seller', Modestus: 'Modestus, baker', Prima: 'Prima', Lucius: 'Lucius', Celsus: 'Celsus, mason', Ferox: 'Ferox', Tullia: 'Tullia' };
-const NAMES_FR: Record<string, string> = { ...NAMES, Sextus: 'Sextus, le péager', Faustus: 'Faustus, marchand de vin', Modestus: 'Modestus, boulanger', Celsus: 'Celsus, tailleur de pierre' };
 const UI = { en: { next: 'Next', tap: 'Tap a word in red to see what it means', try: 'Try again' }, fr: { next: 'Suite', tap: 'Touche un mot en rouge pour voir son sens', try: 'Essaie encore' } };
 
 export function Dialogue() {
   const sim = useStore(store, (v) => v.sim);
   const lang = useStore(store, (v) => v.save.lang);
-  const [faces] = useState(portraits);
   const talk = sim.talk;
+  // everyone in this district gets a face, drawn once when the district is first shown
+  const faces = useMemo(() => {
+    const L = district(sim.district);
+    return portraits([...L.npcs.map((n) => n.who), ...L.walkers.map((w) => w.who)]);
+  }, [sim.district]);
   // keyboard: number keys pick an answer
-  const beat = talk ? beatAt(PROLOGUE, talk.cursor, {}, ctxOf(sim)) : null;
+  const beat = talk ? beatAt(SCRIPT, talk.cursor, {}, ctxOf(sim)) : null;
   useEffect(() => {
     if (!beat || beat.kind !== 'prompt') return;
     const onKey = (e: KeyboardEvent) => { const n = Number(e.key); if (n >= 1 && n <= 9) queue({ answer: n - 1 }); };
@@ -33,16 +37,17 @@ export function Dialogue() {
   }, [beat?.kind, talk?.cursor.node]);
   if (!talk || !beat || beat.kind === 'end') return null;
   const vars = { name: sim.name };
-  const who = beat.kind === 'line' ? beat.who : beat.kind === 'prompt' ? beat.who ?? 'you' : 'you';
+  const written = beat.kind === 'line' ? beat.who : beat.kind === 'prompt' ? beat.who ?? 'you' : 'you';
+  const who = speakerOf(written ?? 'you', talk.with, sim.district);
   const notes = (beat.kind === 'line' || beat.kind === 'prompt' ? beat.notes : undefined) as { la?: boolean; gloss?: Gloss } | undefined;
   const face = faces[who];
-  const name = (lang === 'fr' ? NAMES_FR : NAMES)[who] ?? who;
+  const name = nameOf(who, lang);
   const t = UI[lang];
   return (
     <div className={`dialogue${who === 'you' ? ' self' : ''}`} data-ui="dialogue" onClick={() => beat.kind === 'line' && queue({ act: true })}>
       {face && <img className="face" src={face} alt="" />}
       <div className="panel">
-        {name && <div className="who">{name}</div>}
+        {name.name && <div className="who">{name.la ? <span className="la">{name.name}</span> : name.name}{name.role && <small>{name.role}</small>}</div>}
         {beat.kind === 'line' && (
           <p className="line"><Text text={beat.text} la={notes?.la} gloss={notes?.gloss} lang={lang} /></p>
         )}

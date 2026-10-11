@@ -12,6 +12,8 @@ import { start, store } from './game';
 import { Title } from './ui/Title';
 import { Hud, Loading } from './ui/Hud';
 import { Dialogue } from './ui/Dialogue';
+import { Shop } from './ui/Shop';
+import { Panels } from './ui/Panels';
 
 function App() {
   const screen = useStore(store, (v) => v.screen);
@@ -21,6 +23,8 @@ function App() {
     <>
       <Hud />
       <Dialogue />
+      <Shop />
+      <Panels />
     </>
   );
 }
