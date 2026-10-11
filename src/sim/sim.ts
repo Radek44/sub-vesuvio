@@ -92,8 +92,9 @@ export const IDLE: Input = { x: 0, z: 0 };
 const levelOf = (s: State, level?: Level) => (level && level.id === s.district ? level : district(s.district));
 
 export function create(name = 'Marcus', level: Level = district('portaMarina')): State {
-  const sp = level.spawns.quay;
-  const dog = level.npcs.find((n) => n.who === 'Ferox')!;
+  const sp = level.spawns.quay ?? Object.values(level.spawns)[0];
+  // Ferox lies across his own threshold at Porta Marina; any other district starts him at the hero's spawn
+  const dog = level.npcs.find((n) => n.who === 'Ferox') ?? { x: sp.x - 10, z: sp.z };
   return {
     t: 0,
     district: level.id,

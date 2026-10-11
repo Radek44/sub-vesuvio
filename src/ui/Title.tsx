@@ -33,7 +33,7 @@ export function Title() {
             <button type="button" className="link" onClick={() => setFresh(true)}>{t.newGame}</button>
           </>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); if (clean) play(clean); }}>
+          <form onSubmit={(e) => { e.preventDefault(); if (clean) play(clean, true); }}>
             <label htmlFor="hero-name">{t.name}</label>
             <input id="hero-name" data-ui="name" value={name} maxLength={16} autoComplete="off" spellCheck={false} placeholder="Marcus, Livia…" onChange={(e) => setName(e.target.value)} />
             <button type="submit" className="cta" data-ui="begin" disabled={!clean}>{t.begin}</button>

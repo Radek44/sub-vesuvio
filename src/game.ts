@@ -13,6 +13,7 @@ import { SAVE, type Save } from './save';
 import { create, interactables, step, travel, STEP_MS, type Input, type State } from './sim/sim';
 import { district } from './level';
 import { World } from './render/world';
+import { resume } from './resume';
 import { ITEMS, type ItemId } from './content/items';
 import { QUESTS } from './content/quests';
 
@@ -45,6 +46,8 @@ let moved = false;
 /** Inputs the UI queued for the next step (a picked option, an answer, a tap on "next", a purchase). */
 let queued: Partial<Input> = {};
 let total = 1;
+/** An act press waiting for the next sim step (a fast display can run frames with no step in them). */
+let pendingAct = false;
 let toastId = 0;
 
 export function start(host: HTMLElement, save: Save): () => void {
@@ -71,24 +74,10 @@ export function start(host: HTMLElement, save: Save): () => void {
   return () => { unbind(); world?.dispose(); world = null; };
 }
 
-/** Start or continue: from the title screen. */
-export function play(name: string): void {
+/** Start (`fresh`: a new journey, even under the same name) or continue: from the title screen. */
+export function play(name: string, fresh = false): void {
   const save = store.get().save;
-  const st = save.name === name ? save.story : null;
-  let sim = create(name || 'Marcus', district(st?.district ?? 'portaMarina'));
-  if (st) {
-    const L = district(st.district);
-    sim = {
-      ...sim, district: st.district, flags: st.flags, objective: st.objective, answers: st.answers, seen: st.seen, talk: null,
-      coins: st.coins, items: st.items, quests: st.quests, visited: st.visited,
-      hero: { ...sim.hero, x: st.at.x, y: st.at.y, z: st.at.z }, facing: st.at.facing,
-      ferox: { ...sim.ferox, mode: st.ferox, district: st.feroxDistrict },
-    };
-    if (st.ferox === 'follow') {
-      const fx = sim.hero.x - 10;
-      sim = { ...sim, ferox: { ...sim.ferox, district: st.district, body: { ...sim.hero, x: fx, y: L.groundAt(fx, sim.hero.z) } } };
-    }
-  }
+  const sim = resume(name, !fresh && save.name === name ? save.story : null);
   if (save.name !== name) analytics.step('ftue', 'named');
   store.patch({ sim, screen: 'loading', save: { ...save, name }, panel: null });
   load(sim);
@@ -147,17 +136,20 @@ function frame(dt: number, t: number): void {
   const v = input.vector();
   let s = view.sim;
   const before = s;
-  let act = input.pressed('act') || !!queued.act;
+  pendingAct ||= input.pressed('act') || !!queued.act;
   const extra: Partial<Input> = { pick: queued.pick, answer: queued.answer, buy: queued.buy, close: queued.close };
-  queued = {};
+  let stepped = false;
   for (acc += dt * 1000; acc >= STEP_MS; acc -= STEP_MS) {
     // the stick is screen-relative; the camera looks north, so screen up is −z
-    s = step(s, { x: v.x, z: v.y, run: input.down('run'), act, ...extra });
-    act = false;
+    s = step(s, { x: v.x, z: v.y, run: input.down('run'), act: pendingAct, ...extra });
+    pendingAct = false;
     extra.pick = extra.answer = extra.buy = undefined;
     extra.close = undefined;
+    stepped = true;
     if (s.district !== before.district) break;
   }
+  // what the UI queued is only spent once a step has read it
+  if (stepped) queued = {};
   if (s !== before) {
     if (!moved && (v.x || v.y)) { moved = true; analytics.step('boot', 'first_move'); }
     onStory(before, s);
