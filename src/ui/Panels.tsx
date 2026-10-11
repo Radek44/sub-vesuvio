@@ -140,7 +140,12 @@ function CityMap() {
           return (
             <g key={id} className={`place${seen ? ' seen' : ''}${here ? ' here' : ''}`} data-ui={`map-${id}`}>
               <rect x={p.x} y={p.y} width={p.w} height={p.h} rx="4" />
-              <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 4} textAnchor="middle" className="m-name">{seen ? DISTRICTS[id].name[lang] : '?'}</text>
+              {(() => {
+                const label = seen ? DISTRICTS[id].name[lang] : '?';
+                // squeeze a long name into its box rather than letting it spill over the walls
+                const fit = label.length * 6.6 > p.w - 10 ? { textLength: p.w - 10, lengthAdjust: 'spacingAndGlyphs' as const } : {};
+                return <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 4} textAnchor="middle" className="m-name" {...fit}>{label}</text>;
+              })()}
               {waiting.has(id) && <text x={p.x + p.w - 8} y={p.y + 14} className="m-star" textAnchor="middle">★</text>}
               {here && <circle cx={p.x + p.w / 2} cy={p.y + p.h / 2 + 16} r="5" className="m-you" />}
             </g>
