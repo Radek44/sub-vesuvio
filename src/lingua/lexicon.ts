@@ -366,6 +366,9 @@ const verbs: Entry[] = [
   }),
   V('mittō, mittere, mīsī, missum', 3, 'I send', "j'envoie ; envoyer"),
   // ── Via dell'Abbondanza: words its district adds go here ──
+  V('rogō, rogāre, rogāvī, rogātum', 1, 'I ask', 'je demande ; demander', {
+    note: 'Election notices end with who asks you to vote: … rogant, "… ask (you)".',
+  }),
   V('emō, emere, ēmī, ēmptum', 3, 'I buy', "j'achète ; acheter"),
   V('vēndō, vēndere, vēndidī, vēnditum', 3, 'I sell', 'je vends ; vendre'),
   V('quaerō, quaerere, quaesīvī, quaesītum', 3, 'I look for, I search; I ask', 'je cherche ; chercher'),
