@@ -134,6 +134,11 @@ function head(p: Person): Model {
       box(S, -4, h + 2 + y, -4, 3, h + 2 + y, 3, (x, _y, z) => ((x + 0.5) ** 2 + (z + 0.5) ** 2 <= r * r ? (y === 4 ? 0x2a1a12 : 0xb8643a) : null), 0.05);
     }
   }
+  if (p.carries === 'basket') {
+    // a wicker basket of grapes from the vintage, balanced on the head
+    box(S, -4, h + 1, -4, 3, h + 3, 3, (x, y, z) => (Math.abs(x + 0.5) > 3 || Math.abs(z + 0.5) > 3 || y === h + 1 ? ((x + y + z) & 1 ? 0xa8844a : 0x8a6a3a) : null), 0);
+    box(S, -3, h + 3, -3, 2, h + 4, 2, (x, y, z) => (h3(x, y, z) > 0.25 ? (h3(x, y + 1, z) > 0.5 ? 0x4b2a52 : 0x5a3a62) : null), 0);
+  }
   return finish(m);
 }
 
@@ -260,3 +265,66 @@ export const CAST: Record<string, Person> = {
   Modestus: { build: 'adult', skin: SKIN.olive, hair: 'crop', hairColor: 0x3a2a1a, beard: 0x3a2a1a, tunic: 0xf0ebe0, cut: 'short', apron: 0xd8cdb8, belt: 0xbdb3a0, shoes: 0x5a4a3a, holds: 'scroll' },
   Celsus: { build: 'adult', skin: SKIN.deep, hair: 'crop', hairColor: 0x1e1612, beard: 0x1e1612, tunic: 0x8a7a5a, cut: 'exomis', belt: 0x4a3020, apron: 0x7a5a3a, shoes: 0x3a2a1c, holds: 'chisel' },
 };
+
+// ── Townsfolk: everyone without a name in the story wears the Latin for what they are ──
+
+/** The Latin a townsperson's name tag shows (nominative, with macrons), and what it means. */
+export const TAGS = {
+  puella: { la: 'puella', en: 'girl', fr: 'fille' },
+  puer: { la: 'puer', en: 'boy', fr: 'garçon' },
+  femina: { la: 'fēmina', en: 'woman', fr: 'femme' },
+  vir: { la: 'vir', en: 'man', fr: 'homme' },
+  senex: { la: 'senex', en: 'old man', fr: 'vieil homme' },
+  avia: { la: 'avia', en: 'grandmother', fr: 'grand-mère' },
+  nauta: { la: 'nauta', en: 'sailor', fr: 'marin' },
+  mercator: { la: 'mercātor', en: 'merchant', fr: 'marchand' },
+  agricola: { la: 'agricola', en: 'farmer', fr: 'paysan' },
+  faber: { la: 'faber', en: 'craftsman', fr: 'artisan' },
+  pistor: { la: 'pistor', en: 'baker', fr: 'boulanger' },
+  caupo: { la: 'caupō', en: 'innkeeper', fr: 'aubergiste' },
+  sutor: { la: 'sūtor', en: 'shoemaker', fr: 'cordonnier' },
+  fullo: { la: 'fullō', en: 'fuller', fr: 'foulon' },
+} as const;
+export type TagKind = keyof typeof TAGS;
+
+const TUNICS = [0xd8c8a0, 0xb8643a, 0x6a7a4a, 0x7a8a9a, 0xe8dcc2, 0x9a5a3a, 0x5a6a8a, 0xc9a050, 0x8a4a5a, 0xece4d2];
+const HAIR = [0x1a1210, 0x2a1a10, 0x3a2418, 0x5a3a24, 0x6a4a2a, 0x8a6a4a];
+const SKINS = Object.values(SKIN);
+const pick = <T,>(a: readonly T[], v: number, salt: number): T => a[Math.floor(h3(v, salt, 17) * a.length) % a.length];
+
+/** A townsperson of a kind, varied by `variant` (clothes, hair, build, what they carry). Pure and stable. */
+export function townsperson(kind: TagKind, variant: number): Person {
+  const v = variant + kind.length * 31;
+  const skin = pick(SKINS, v, 1), hairColor = pick(HAIR, v, 2), tunic = pick(TUNICS, v, 3);
+  const shoes = pick([0x5a3a22, 0x3a2a1c, 0x4a3020], v, 4);
+  const base = { skin, hairColor, tunic, shoes, belt: pick([0x5a3a20, 0x8a6a3a, 0x4a3020], v, 5) };
+  switch (kind) {
+    case 'puella': return { ...base, build: 'child', hair: h3(v, 6, 1) > 0.5 ? 'braids' : 'bun', cut: 'long', palla: h3(v, 7, 1) > 0.6 ? pick(TUNICS, v, 8) : undefined };
+    case 'puer': return { ...base, build: 'child', hair: h3(v, 6, 1) > 0.5 ? 'curls' : 'crop', cut: 'short', bulla: h3(v, 9, 1) > 0.4 };
+    case 'femina': return { ...base, build: h3(v, 6, 2) > 0.7 ? 'stout' : 'adult', hair: h3(v, 6, 1) > 0.4 ? 'bun' : 'scarf', cut: 'long', palla: h3(v, 7, 1) > 0.4 ? pick(TUNICS, v, 8) : undefined, carries: h3(v, 10, 1) > 0.8 ? 'hydria' : undefined };
+    case 'avia': return { ...base, build: 'stout', hair: 'scarf', hairColor: 0xb8b2a8, cut: 'long', palla: 0x6a6a7a };
+    case 'senex': return { ...base, build: 'adult', hair: 'bald', hairColor: 0xc8c2b8, beard: 0xd8d2c8, cut: 'long', cloak: { color: pick([0x6a5a4a, 0x7a6a5a], v, 9) } };
+    case 'nauta': return { ...base, build: 'adult', hair: 'shaggy', beard: hairColor, cut: 'exomis', tunic: pick([0x7a8a9a, 0x5a6a8a, 0xb8a888], v, 3) };
+    case 'mercator': return { ...base, build: 'stout', hair: 'crop', cut: 'short', trim: 0x8a2a24, holds: 'tablets', cloak: { color: pick([0x8a3a2a, 0x3a5a7a], v, 9) } };
+    case 'agricola': return { ...base, build: 'adult', hair: 'crop', beard: hairColor, cut: 'exomis', tunic: 0x8a7a5a, carries: 'basket' };
+    case 'faber': return { ...base, build: 'adult', hair: 'crop', beard: hairColor, cut: 'exomis', apron: 0x7a5a3a, holds: 'chisel' };
+    case 'pistor': return { ...base, build: 'adult', hair: 'crop', cut: 'short', tunic: 0xf0ebe0, apron: 0xd8cdb8, holds: 'scroll' };
+    case 'caupo': return { ...base, build: 'stout', hair: 'bald', beard: hairColor, cut: 'short', apron: 0xe2d8c0, holds: 'ladle' };
+    case 'sutor': return { ...base, build: 'adult', hair: 'crop', cut: 'short', apron: 0x5a3a24, holds: 'stylus' };
+    case 'fullo': return { ...base, build: 'adult', hair: 'crop', cut: 'exomis', tunic: 0xe8e4da, apron: 0xb8b2a8 };
+    default: return { ...base, build: 'adult', hair: 'crop', cut: 'short' };
+  }
+}
+
+/** A cast name (`Vibia`) or a townsperson (`puella:2`) as a Person. */
+export function personFor(who: string): Person | null {
+  if (CAST[who]) return CAST[who];
+  const [kind, v] = who.split(':');
+  return kind in TAGS ? townsperson(kind as TagKind, Number(v) || 0) : null;
+}
+/** What a name tag over someone says: their name, or the Latin for what they are. */
+export function tagFor(who: string): { la?: string; name?: string; en?: string; fr?: string } {
+  if (CAST[who]) return { name: who };
+  const kind = who.split(':')[0] as TagKind;
+  return TAGS[kind] ? { ...TAGS[kind] } : { name: who };
+}

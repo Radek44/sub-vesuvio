@@ -10,13 +10,9 @@
  * and three imperatives for Ferox (sedē, venī, ī).
  */
 import type { Script } from 'ymir/dialogue';
-import type { ChooseTask } from '../lingua';
+import { choose, la, type Cond, type Effect, type Objective } from './types';
 
-/** Conditions the sim tests. */
-export type Cond = { flag: string } | { not: string };
-/** Effects the sim applies. */
-export type Effect = { set: string } | { objective: Objective } | { ferox: 'sit' | 'follow' };
-export type Objective = 'gate' | 'house' | 'ferox' | 'door' | 'forum';
+export type { Cond, Effect, Objective } from './types';
 
 /** The objective line at the top of the screen. */
 export const OBJECTIVES: Record<Objective, { en: string; fr: string }> = {
@@ -26,9 +22,6 @@ export const OBJECTIVES: Record<Objective, { en: string; fr: string }> = {
   door: { en: 'Knock at your uncle’s door', fr: 'Frappe à la porte de ton oncle' },
   forum: { en: 'Find Tullia, the banker’s daughter, at the Forum', fr: 'Trouve Tullia, la fille du banquier, au Forum' },
 };
-
-const la = { la: true };
-const choose = (options: ChooseTask['options']): { task: ChooseTask } => ({ task: { step: 'choose', options } });
 
 export const PROLOGUE: Script<Cond, Effect> = {
   // ── Arriving ──

@@ -67,7 +67,7 @@ export interface Input {
 export const IDLE: Input = { x: 0, z: 0 };
 
 export function create(name = 'Marcus', level: Level = portaMarina()): State {
-  const s = level.spawn;
+  const s = level.spawns.quay;
   const dog = level.npcs.find((n) => n.who === 'Ferox')!;
   const dogY = groundAt(level, dog.x, dog.z);
   return {
@@ -104,7 +104,7 @@ const has = (s: State, f: string) => s.flags.includes(f);
 export function ctxOf(s: State): Ctx<Cond> {
   return {
     vars: { name: s.name },
-    test: (c) => ('flag' in c ? has(s, c.flag) : !has(s, c.not)),
+    test: (c) => ('flag' in c ? has(s, c.flag) : 'not' in c ? !has(s, c.not) : false),
     check: (_id, answer, data) => {
       const task = (data as { task?: ChooseTask } | undefined)?.task;
       if (!task) return 'wrong';

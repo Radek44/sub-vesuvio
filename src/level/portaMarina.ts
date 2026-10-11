@@ -17,6 +17,8 @@
  *   a treadwheel crane.
  */
 import { VoxelWorld, navGrid, type Model } from 'ymir/voxel';
+import type { Level, Spawn, Ring } from './types';
+import { district as districtOf } from './index';
 import { P, M, h2, h3, incertum, mixc, noise2, plaster, quadratum, tint, vary } from '../art/palette';
 import { archHole, column, dirt, facade, gableRoofX, ground, meadow, mosaic, programma, shedRoofX, solid, street, wallX, wallZ, type Opening } from '../art/build';
 import { amphora, counter, crate, dolium, fountain, lararium, mill, oven, waterTower } from '../art/props';
@@ -38,34 +40,27 @@ const WALL_TOP = 76;
 export const QUAY = 14;
 
 export type TreeKind = 'pine' | 'cypress' | 'olive' | 'fig' | 'oleander' | 'tuft';
-export interface Placed { kind: string; variant: number; x: number; y: number; z: number; rotate?: number }
-export interface Source { x: number; y: number; z: number }
-export interface Spot { id: string; x: number; y: number; z: number; r: number; verb: 'speak' | 'read' | 'look' | 'drink' | 'enter' }
-export interface Npc { id: string; who: string; x: number; z: number; facing: number; pose: 'idle' | 'sit' | 'work' | 'sell' | 'drink' | 'lie' }
-export interface WaterArea { x: number; z: number; w: number; d: number; level: number; floor: number; kind: 'fountain' | 'pool' | 'impluvium' }
+export type { Placed, Source, Spot, Npc, WaterArea, Level } from './types';
 
-export interface Level {
-  world: VoxelWorld;
-  /** Size in voxels. */
-  width: number;
-  depth: number;
-  /** Parts above head height that hide when the hero walks under them (the gate's mass). */
-  occluders: { id: string; world: VoxelWorld; x0: number; x1: number; z0: number; z1: number }[];
-  trees: Placed[];
-  props: Placed[];
-  water: WaterArea[];
-  fires: (Source & { kind: 'hearth' | 'oven' | 'lamp' | 'furnace' })[];
-  smoke: (Source & { kind: 'smoke' | 'steam' })[];
-  jets: (Source & { dir: [number, number] })[];
-  spots: Spot[];
-  npcs: Npc[];
-  spawn: { x: number; y: number; z: number };
-}
+/** Where you arrive: off the ship at the quay, or walking down from the Forum. */
+export const SPAWNS: Record<string, Spawn> = {
+  quay: { x: QUAY + 5, y: 5, z: 232, facing: Math.PI / 2 },
+  east: { x: W - 18, y: 53, z: 216, facing: -Math.PI / 2 },
+};
 
 export function buildPortaMarina(): Level {
   const w = new VoxelWorld();
   const upper = new VoxelWorld();
-  const L: Level = { world: w, width: W, depth: D, occluders: [{ id: 'gate', world: upper, x0: GATE.x0 - 8, x1: GATE.x1 + 8, z0: 160, z1: 240 }], trees: [], props: [], water: [], fires: [], smoke: [], jets: [], spots: [], npcs: [], spawn: { x: QUAY + 5, y: 5, z: 232 } };
+  const L: Level = {
+    id: 'portaMarina', name: { la: 'Porta Marina', en: 'The Sea Gate', fr: 'La porte de la Mer' },
+    world: w, width: W, depth: D, occluders: [{ id: 'gate', world: upper, x0: GATE.x0 - 8, x1: GATE.x1 + 8, z0: 160, z1: 240 }],
+    trees: [], props: [], water: [], fires: [], smoke: [], jets: [], spots: [], npcs: [], walkers: [], shops: [],
+    exits: [{ id: 'to-forum', to: 'forum', arrive: 'west', x0: W - 4, x1: W - 1, z0: ROAD_N - WALK, z1: ROAD_S + WALK, label: { en: 'To the Forum', fr: 'Vers le Forum' } }],
+    spawns: SPAWNS,
+    groundAt: (x, z) => (w.topAt(Math.round(x), Math.round(z), roadY(x) + 16, -30) ?? roadY(x)) + 1,
+    ring: RING,
+    sea: { west: QUAY * 0.125, level: -0.8 },
+  };
   const tree = (kind: TreeKind, variant: number, x: number, z: number, y?: number) => L.trees.push({ kind, variant, x, z, y: y ?? surfaceAt(x, z) + 1 });
   const prop = (kind: string, variant: number, x: number, y: number, z: number, rotate = 0) => L.props.push({ kind, variant, x, y, z, rotate });
   const stamp = (m: Model, x: number, y: number, z: number, rotate = 0) => w.stamp(m, { x, y, z }, { rotate });
@@ -210,6 +205,32 @@ export function buildPortaMarina(): Level {
   // The tombs and the gate can be read; people spoken to (the sim decides what each says).
   L.spots.push({ id: 'gate', x: GATE.x0 - 6, y: roadY(GATE.x0 - 6), z: GATE.roadN + 4, r: 18, verb: 'look' });
   L.spots.push({ id: 'tomb', x: 135, y: outside(135, 186), z: 186, r: 16, verb: 'read' });
+
+  // ── Shops: a counter to buy at, a keeper behind it ──
+  L.shops.push(
+    { id: 'thermopolium', name: { la: 'Thermopolium', en: 'Vibia’s hot-food counter', fr: 'Le comptoir chaud de Vibia' }, sign: 'THERMOPOLIVM', keeper: 'thermopolium', x: 276, z: front + 4,
+      stock: [{ item: 'bread', price: 2 }, { item: 'cheese', price: 3 }, { item: 'grapes', price: 1 }, { item: 'apple', price: 1 }] },
+    { id: 'baker', name: { la: 'Pistor', en: 'Modestus’s bakery', fr: 'La boulangerie de Modestus' }, sign: 'PISTOR', keeper: 'baker', x: 436, z: front + 4,
+      stock: [{ item: 'bread', price: 1 }, { item: 'treat', price: 1 }] },
+    { id: 'oil', name: { la: 'Oleum', en: 'Faustus’s wine and oil shop', fr: 'Le marchand de vin et d’huile Faustus' }, sign: 'OLEVM', keeper: 'wine', x: 516, z: front + 8,
+      stock: [{ item: 'oil', price: 4 }, { item: 'flask', price: 3 }] },
+  );
+  for (const sh of L.shops) L.spots.push({ id: `shop:${sh.id}`, x: sh.x, y: roadY(sh.x) + 3, z: sh.z, r: 12, verb: 'shop' });
+
+  // ── The people of the street ──
+  L.npcs.push(
+    { id: 'old-man', who: 'senex:0', x: 62, z: 176, facing: 0.2, pose: 'sit' }, // resting on the schola tomb's bench
+    { id: 'grape-farmer', who: 'agricola:1', x: 168, z: 244, facing: -1.2, pose: 'idle' }, // waiting at the gate with grapes
+    { id: 'mason-2', who: 'faber:2', x: 360, z: 285, facing: Math.PI, pose: 'work' },
+    { id: 'boy-fountain', who: 'puer:3', x: 498, z: ROAD_N - WALK + 8, facing: -0.6, pose: 'idle' },
+  );
+  L.walkers.push(
+    { id: 'sailor', who: 'nauta:0', path: [[30, 236], [170, 236], [170, 228], [30, 228]], speed: 11, phase: 0 },
+    { id: 'girl', who: 'puella:1', path: [[260, 194], [620, 194], [620, 196], [260, 196]], speed: 9, phase: 120 },
+    { id: 'grandmother', who: 'avia:0', path: [[270, 236], [600, 236], [600, 238], [270, 238]], speed: 6, phase: 40 },
+    { id: 'merchant', who: 'mercator:2', path: [[300, 212], [630, 212], [630, 220], [300, 220]], speed: 10, phase: 300 },
+    { id: 'woman', who: 'femina:4', path: [[486, 120], [486, 186], [560, 194], [486, 194]], speed: 8, phase: 0 },
+  );
   return L;
 
   function garden(x: number, y: number, z: number, d: number): number {
@@ -452,9 +473,25 @@ function dogMosaic(u: number, v: number): number | null {
 
 const roofTileAt = (x: number, z: number) => ((x % 4) === 0 ? vary(P.imbrex, x, 0, z, 0.06) : vary(((Math.floor(z / 3) + Math.floor(x / 4)) & 1) ? P.tile : P.tileDark, x, 1, z, 0.07));
 
-/** The level, built once. */
-let cached: Level | null = null;
-export function portaMarina(): Level { return (cached ??= buildPortaMarina()); }
+/**
+ * Beyond the box: the bay to the west, the city wall running north and south from the gate, the city
+ * east of it, vineyards and pines on the slope outside the walls, the land falling to the sea south.
+ */
+const RING: Ring = {
+  kind: (x, z) => {
+    if (x < 1.75) return 'sea';
+    if (x >= 24 && x < 27) return 'wall';
+    if (x < 24) return z > 100 ? 'sea' : 'country';
+    return 'city';
+  },
+  height: (x, z) => {
+    if (x < 24) return z < 0 ? 3 + Math.min(10, -z * 0.12) : z > 48 ? Math.max(0, 2 - (z - 48) * 0.05) : 3;
+    return 6.5;
+  },
+};
+
+/** The level (via the district registry, which keeps it built). */
+export function portaMarina(): Level { return districtOf('portaMarina'); }
 
 /** Walkable cells for paths (NPCs, the dog, tests). */
 export function navOf(L: Level) {

@@ -1,10 +1,10 @@
 /**
- * Art check: the level under the town renderer, camera on a point (`?at=x,z` in voxels, `?mood=`,
+ * Art check: a district (`?district=forum`) under the town renderer, camera on a point (`?at=x,z` in voxels, `?mood=`,
  * `?bend=`, `?pitch=`, `?dist=`, `?yaw=`). `window.artCheck` reports timings. Not part of the game.
  */
 import * as THREE from 'three';
 import { FollowCamera, LOOK, MOODS, Stage, createPost } from 'ymir/three';
-import { portaMarina } from './level/portaMarina';
+import { district, type DistrictId } from './level';
 import { TownView, VOX } from './render/town';
 import { BAY } from './render/moods';
 
@@ -12,7 +12,7 @@ const q = new URLSearchParams(location.search);
 const num = (k: string, d: number) => (q.has(k) ? Number(q.get(k)) : d);
 const [ax, az] = (q.get('at') ?? '250,215').split(',').map(Number);
 const t0 = performance.now();
-const level = portaMarina();
+const level = district((q.get('district') ?? 'portaMarina') as DistrictId);
 const buildMs = performance.now() - t0;
 const camera = new THREE.PerspectiveCamera(num('fov', 30), 1, 0.5, 2000);
 const stage = new Stage(document.getElementById('world')!, { camera, ladder: false, toneMapping: THREE.ACESFilmicToneMapping, post: q.get('post') === '0' ? undefined : createPost() });
