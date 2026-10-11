@@ -153,13 +153,6 @@ export const PROLOGUE: Script<Cond, Effect> = {
       { who: 'Prima', text: 'Well. Almost never. Lately it splutters, and the water tastes of iron. Nobody knows why.' },
     ],
   },
-  lucius: {
-    id: 'lucius',
-    lines: [
-      { who: 'Lucius', text: '«Salvē!» Are you really from Gaul? Do they have dogs there? Bigger than Ferox?' },
-      { who: 'Lucius', text: 'Ferox likes me. I think. He hasn’t bitten me. That’s liking, isn’t it?' },
-    ],
-  },
   celsus: {
     id: 'celsus',
     lines: [

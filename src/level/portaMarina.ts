@@ -209,13 +209,21 @@ export function buildPortaMarina(): Level {
   // ── Shops: a counter to buy at, a keeper behind it ──
   L.shops.push(
     { id: 'thermopolium', name: { la: 'Thermopolium', en: 'Vibia’s hot-food counter', fr: 'Le comptoir chaud de Vibia' }, sign: 'THERMOPOLIVM', keeper: 'thermopolium', x: 276, z: front + 4,
-      stock: [{ item: 'bread', price: 2 }, { item: 'cheese', price: 3 }, { item: 'grapes', price: 1 }, { item: 'apple', price: 1 }] },
+      stock: [{ item: 'cheese', price: 3 }, { item: 'grapes', price: 1 }, { item: 'apple', price: 1 }] },
     { id: 'baker', name: { la: 'Pistor', en: 'Modestus’s bakery', fr: 'La boulangerie de Modestus' }, sign: 'PISTOR', keeper: 'baker', x: 436, z: front + 4,
       stock: [{ item: 'bread', price: 1 }, { item: 'treat', price: 1 }] },
     { id: 'oil', name: { la: 'Oleum', en: 'Faustus’s wine and oil shop', fr: 'Le marchand de vin et d’huile Faustus' }, sign: 'OLEVM', keeper: 'wine', x: 516, z: front + 8,
       stock: [{ item: 'oil', price: 4 }, { item: 'flask', price: 3 }] },
   );
   for (const sh of L.shops) L.spots.push({ id: `shop:${sh.id}`, x: sh.x, y: roadY(sh.x) + 3, z: sh.z, r: 12, verb: 'shop' });
+
+  // ── Lucius's four knucklebones, scattered where they bounced ──
+  const tali: [number, number][] = [[176, 226], [440, 197], [560, 240], [120, 233]];
+  tali.forEach(([x, z], i) => {
+    const y = L.groundAt(x, z);
+    L.spots.push({ id: `take:talus:${i + 1}`, x, y, z, r: 10, verb: 'take' });
+    L.props.push({ kind: 'talus', variant: i, x, y, z });
+  });
 
   // ── The people of the street ──
   L.npcs.push(
