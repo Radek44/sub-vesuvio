@@ -12,6 +12,8 @@
  */
 import { model, finish, box, pair, rect, type Model, type Build, type CharacterKit } from 'ymir/voxel';
 import { mixc, tint, h3 } from './palette';
+import { FORUM_CAST } from './people-forum';
+import { ABBONDANZA_CAST } from './people-abbondanza';
 
 export const PEOPLE_VOX = 0.0625;
 
@@ -318,13 +320,14 @@ export function townsperson(kind: TagKind, variant: number): Person {
 
 /** A cast name (`Vibia`) or a townsperson (`puella:2`) as a Person. */
 export function personFor(who: string): Person | null {
-  if (CAST[who]) return CAST[who];
+  const named = CAST[who] ?? FORUM_CAST[who] ?? ABBONDANZA_CAST[who];
+  if (named) return named;
   const [kind, v] = who.split(':');
   return kind in TAGS ? townsperson(kind as TagKind, Number(v) || 0) : null;
 }
 /** What a name tag over someone says: their name, or the Latin for what they are. */
 export function tagFor(who: string): { la?: string; name?: string; en?: string; fr?: string } {
-  if (CAST[who]) return { name: who };
+  if (CAST[who] || FORUM_CAST[who] || ABBONDANZA_CAST[who]) return { name: who };
   const kind = who.split(':')[0] as TagKind;
   return TAGS[kind] ? { ...TAGS[kind] } : { name: who };
 }

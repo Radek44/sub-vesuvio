@@ -84,6 +84,8 @@ export const REF_NOUNS: Record<string, RefNoun> = {
     sg: ['puer', 'puerī', 'puerō', 'puerum', 'puerō', 'puer'],
     pl: ['puerī', 'puerōrum', 'puerīs', 'puerōs', 'puerīs', 'puerī'],
   },
+  // ── Forum: reference rows for its words go here ──
+
   // The town's people and goods (added with the open city)
   senex: { gender: 'm', sg: ['senex', 'senis', 'senī', 'senem', 'sene', 'senex'], pl: ['senēs', 'senum', 'senibus', 'senēs', 'senibus', 'senēs'] },
   pistor: { gender: 'm', sg: ['pistor', 'pistōris', 'pistōrī', 'pistōrem', 'pistōre', 'pistor'], pl: ['pistōrēs', 'pistōrum', 'pistōribus', 'pistōrēs', 'pistōribus', 'pistōrēs'] },
@@ -95,6 +97,7 @@ export const REF_NOUNS: Record<string, RefNoun> = {
   tālus: { gender: 'm', sg: ['tālus', 'tālī', 'tālō', 'tālum', 'tālō', 'tāle'], pl: ['tālī', 'tālōrum', 'tālīs', 'tālōs', 'tālīs', 'tālī'] },
   mālum: { gender: 'n', sg: ['mālum', 'mālī', 'mālō', 'mālum', 'mālō', 'mālum'], pl: ['māla', 'mālōrum', 'mālīs', 'māla', 'mālīs', 'māla'] },
   solea: { gender: 'f', sg: ['solea', 'soleae', 'soleae', 'soleam', 'soleā', 'solea'], pl: ['soleae', 'soleārum', 'soleīs', 'soleās', 'soleīs', 'soleae'] },
+  thermopolium: { gender: 'n', sg: ['thermopolium', 'thermopoliī', 'thermopoliō', 'thermopolium', 'thermopoliō', 'thermopolium'], pl: ['thermopolia', 'thermopoliōrum', 'thermopoliīs', 'thermopolia', 'thermopoliīs', 'thermopolia'] },
   avia: { gender: 'f', sg: ['avia', 'aviae', 'aviae', 'aviam', 'aviā', 'avia'], pl: ['aviae', 'aviārum', 'aviīs', 'aviās', 'aviīs', 'aviae'] },
   ager: {
     gender: 'm',
@@ -326,6 +329,7 @@ export const REF_VERBS: Record<string, RefVerb> = {
   faciō: { present: ['faciō', 'facis', 'facit', 'facimus', 'facitis', 'faciunt'], imperative: ['fac', 'facite'], infinitive: 'facere' },
   audiō: { present: ['audiō', 'audīs', 'audit', 'audīmus', 'audītis', 'audiunt'], imperative: ['audī', 'audīte'], infinitive: 'audīre' },
   veniō: { present: ['veniō', 'venīs', 'venit', 'venīmus', 'venītis', 'veniunt'], imperative: ['venī', 'venīte'], infinitive: 'venīre' },
+  // ── Via dell'Abbondanza: reference rows for its words go here ──
   emō: { present: ['emō', 'emis', 'emit', 'emimus', 'emitis', 'emunt'], imperative: ['eme', 'emite'], infinitive: 'emere' },
   vēndō: { present: ['vēndō', 'vēndis', 'vēndit', 'vēndimus', 'vēnditis', 'vēndunt'], imperative: ['vēnde', 'vēndite'], infinitive: 'vēndere' },
   sum: { present: ['sum', 'es', 'est', 'sumus', 'estis', 'sunt'], imperative: ['es', 'este'], infinitive: 'esse' },

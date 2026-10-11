@@ -365,6 +365,7 @@ const verbs: Entry[] = [
     forms: table('imp.2.sg: dūc'),
   }),
   V('mittō, mittere, mīsī, missum', 3, 'I send', "j'envoie ; envoyer"),
+  // ── Via dell'Abbondanza: words its district adds go here ──
   V('emō, emere, ēmī, ēmptum', 3, 'I buy', "j'achète ; acheter"),
   V('vēndō, vēndere, vēndidī, vēnditum', 3, 'I sell', 'je vends ; vendre'),
   V('quaerō, quaerere, quaesīvī, quaesītum', 3, 'I look for, I search; I ask', 'je cherche ; chercher'),
@@ -456,6 +457,7 @@ const nouns2: Entry[] = [
     note: 'Irregular plural: deī, diī or dī; dative and ablative deīs, diīs or dīs.',
   }),
   N('puer', 'puerī', 'm', 'boy', 'garçon', { note: 'Keeps its e: puerī.' }),
+  // ── Forum: words its district adds go here ──
   N('faber', 'fabrī', 'm', 'craftsman, smith', 'artisan, forgeron'),
   N('petasus', 'petasī', 'm', 'sun hat (broad-brimmed)', 'chapeau de soleil (à large bord)'),
   N('stilus', 'stilī', 'm', 'stylus (for writing on wax)', 'stylet (pour écrire sur la cire)'),
@@ -464,6 +466,7 @@ const nouns2: Entry[] = [
   N('mālum', 'mālī', 'n', 'apple', 'pomme'),
   N('oleum', 'oleī', 'n', 'oil (olive oil)', 'huile (d’olive)'),
   N('macellum', 'macellī', 'n', 'market hall (for food)', 'marché couvert (alimentation)'),
+  N('thermopolium', 'thermopoliī', 'n', 'hot-food shop', 'comptoir de plats chauds'),
   N('ager', 'agrī', 'm', 'field', 'champ', { note: 'Drops its e: agrī.' }),
   N('liber', 'librī', 'm', 'book', 'livre', { note: 'Not līber, "free".' }),
   N('vir', 'virī', 'm', 'man', 'homme'),

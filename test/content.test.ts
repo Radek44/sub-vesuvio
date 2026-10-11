@@ -1,16 +1,20 @@
 /**
- * The Latin in the Prologue is checked by the game (CLAUDE.md): every Latin word in every line parses
+ * The Latin in every conversation is checked by the game (CLAUDE.md): every Latin word in every line parses
  * with lingua, with the right macrons; every prompt's right answer is accepted and every listed wrong
- * answer is rejected with its own feedback; the script has no dangling or unreachable nodes.
+ * answer is rejected with its own feedback; the script has no dangling or unreachable nodes. Shop signs,
+ * shop names, item names and name tags are Latin too, and linted the same way.
  */
 import { describe, expect, it } from 'vitest';
 import { danglingGotos, fill, scriptTexts, unreachable } from 'ymir/dialogue';
-import { PROLOGUE, TALK_TO } from '../src/content/prologue';
+import { SCRIPT as PROLOGUE, TALK_TO } from '../src/content';
+import { ITEMS } from '../src/content/items';
+import { TAGS } from '../src/art/people';
+import { DISTRICTS, district } from '../src/level';
 import { check, lintLatin, lintScript, type ChooseTask } from '../src/lingua';
 
 const prompts = Object.values(PROLOGUE).flatMap((n) => (n.then && 'prompt' in n.then && typeof n.then.prompt === 'object' ? [n.then.prompt] : []));
 
-describe('Prologue content', () => {
+describe('content', () => {
   it('every Latin word in the script is one lingua knows, spelled right', () => {
     expect(lintScript(scriptTexts(PROLOGUE))).toEqual([]);
   });
@@ -47,7 +51,8 @@ describe('Prologue content', () => {
 
   it('has no dangling jumps, and everything can be reached from somewhere the player can start', () => {
     expect(danglingGotos(PROLOGUE)).toEqual([]);
-    expect(unreachable(PROLOGUE, ['arrival', ...Object.values(TALK_TO)])).toEqual([]);
+    const chats = Object.keys(PROLOGUE).filter((k) => k.startsWith('chat:'));
+    expect(unreachable(PROLOGUE, ['arrival', ...Object.values(TALK_TO), ...chats])).toEqual([]);
   });
 
   it('every line has a speaker the UI can name, and glosses only for words in the line', () => {
@@ -55,6 +60,24 @@ describe('Prologue content', () => {
       const gloss = (t.notes as { gloss?: Record<string, unknown> } | undefined)?.gloss ?? {};
       const norm = (w: string) => w.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/v/g, 'u');
       for (const g of Object.keys(gloss)) expect({ at: `${t.node}/${t.at}`, g, present: norm(t.text).includes(norm(g)) }).toEqual({ at: `${t.node}/${t.at}`, g, present: true });
+    }
+  });
+});
+
+describe('Latin on things', () => {
+  it('item names, name tags, district names, shop signs and shop names are Latin lingua knows', () => {
+    for (const [id, it] of Object.entries(ITEMS)) {
+      expect({ id, issues: lintLatin(it.la, { whole: true }) }).toEqual({ id, issues: [] });
+      if (it.plural) expect({ id, issues: lintLatin(it.plural, { whole: true }) }).toEqual({ id, issues: [] });
+    }
+    for (const [k, t] of Object.entries(TAGS)) expect({ k, issues: lintLatin(t.la, { whole: true }) }).toEqual({ k, issues: [] });
+    for (const id of Object.keys(DISTRICTS) as (keyof typeof DISTRICTS)[]) {
+      const L = district(id);
+      for (const sh of L.shops) {
+        expect({ shop: sh.id, issues: lintLatin(sh.sign, { whole: true }) }).toEqual({ shop: sh.id, issues: [] });
+        expect({ shop: sh.id, issues: lintLatin(sh.name.la, { whole: true }) }).toEqual({ shop: sh.id, issues: [] });
+        for (const s of sh.stock) expect({ shop: sh.id, item: s.item, known: s.item in ITEMS, price: s.price > 0 }).toEqual({ shop: sh.id, item: s.item, known: true, price: true });
+      }
     }
   });
 });
