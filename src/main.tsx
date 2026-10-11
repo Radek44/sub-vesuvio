@@ -1,31 +1,30 @@
-/** The page: the world behind, the UI in front (ymir/ui components, styled by ymir/ui/y.css). */
+/** The page: the world behind, the UI in front. */
 import { createRoot } from 'react-dom/client';
-import { CTA, CurrencyBar, Joystick, useStore } from 'ymir/ui';
-import 'ymir/ui/y.css';
+import { useStore } from 'ymir/ui';
+import '@fontsource/cinzel/600.css';
+import '@fontsource/cinzel/800.css';
+import '@fontsource/noto-serif/400.css';
+import '@fontsource/noto-serif/400-italic.css';
+import '@fontsource/noto-serif/700.css';
 import './styles.css';
 import { boot } from './boot';
-import { input, newRun, start, store } from './game';
-import { GOAL } from './sim';
+import { start, store } from './game';
+import { Title } from './ui/Title';
+import { Hud, Loading } from './ui/Hud';
+import { Dialogue } from './ui/Dialogue';
 
-function Hud() {
-  const sim = useStore(store, (v) => v.sim);
-  const bestMs = useStore(store, (v) => v.save.bestMs);
+function App() {
+  const screen = useStore(store, (v) => v.screen);
+  if (screen === 'title') return <Title />;
+  if (screen === 'loading') return <Loading />;
   return (
     <>
-      <div className="top">
-        <CurrencyBar items={[{ id: 'coins', icon: <span className="coin" />, value: sim.got, sub: `of ${GOAL}` }]} />
-        <span className="best">{bestMs ? `Best ${(bestMs / 1000).toFixed(1)}s` : ''}</span>
-      </div>
-      <Joystick onMove={(x, y) => input.touchMove(x, y)}>{!sim.got && <p className="hint">Move with WASD, the arrows, a gamepad or a thumb</p>}</Joystick>
-      {sim.over && (
-        <div className="bottom">
-          <CTA sub={`${(sim.t / 1000).toFixed(1)} seconds`} onClick={newRun}>PLAY AGAIN</CTA>
-        </div>
-      )}
+      <Hud />
+      <Dialogue />
     </>
   );
 }
 
 const save = await boot();
 start(document.getElementById('world')!, save);
-createRoot(document.getElementById('ui')!).render(<Hud />);
+createRoot(document.getElementById('ui')!).render(<App />);

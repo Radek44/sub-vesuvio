@@ -8,12 +8,29 @@ Built on **Ymir** (`ymir` in package.json, pinned to a commit; private repo, so 
 secret). Ymir's docs are in `node_modules/ymir/docs`: `ADOPTING.md`, `PLATFORMS.md`, `UI.md`. Shared engine
 fixes and features go to Ymir first (its roadmap is §13 of the design), then move the pin here.
 
-## Layout (the starter's, until the game replaces it)
-- `src/sim.ts`: the rules. PURE fixed-step `step(state, input) → state`, seed in the state, a `StepSim`.
+## Layout
+- `src/sim/sim.ts`: the rules. PURE fixed-step (60 Hz) `step(state, input, level) → state`: the hero on ymir/voxel
+  `moveBody` against the level's own voxels, acting on the nearest thing in reach, conversations on ymir/dialogue
+  `step` (the sim lends it the story flags and lingua's checker, and applies the effects), Ferox guarding or
+  following, the toll collector holding the gate. A `StepSim` for ymir/testkit.
+- `src/level/portaMarina.ts`: the level, PURE. Builds the VoxelWorld (1/8 m voxels: x east, y up, z south) and lists
+  what the world draws on it: trees, props, water, fires, smoke, fountain jets, people, things to act on.
+- `src/art/`: PURE painters. `palette.ts` (the Pompeian palette and surface recipes: basalt paving, opus incertum,
+  quadratum, plaster, roof tiles), `build.ts` (ground, streets, facades with openings, roofs, columns, arches,
+  mosaics), `nature.ts` (stone pine, cypress, olive, fig, oleander, vines), `props.ts` (fountain, water tower,
+  amphorae, counter, mills, oven, lararium, the ship), `people.ts` (the cast at 1/16 m: `Person` → ymir humanoid
+  kit; dress from Pompeii and Herculaneum), `dog.ts` (Ferox's parts).
+- `src/content/prologue.ts`: the Prologue's conversations as data (Script v2): «Latin» in guillemets, `notes.la`
+  for all-Latin lines, `notes.gloss` for tap meanings, prompts graded by lingua, objectives.
+- `src/render/`: the Three.js half; reads state, never writes it. `town.ts` (the level on screen: WorldView,
+  trees, props, water, lamps, emitters, the gate's upper mass that steps aside), `backdrop.ts` (the sea, Vesuvius
+  and its plume on the curved horizon), `actors.ts` (rigs, Ferox, poses), `world.ts` (the stage, the hero, the
+  camera), `moods.ts`.
 - `src/game.ts`: the controller, the only place that combines sim, input, saves, analytics and the world.
-- `src/world.ts`: the scene on a ymir/three `Stage`; reads state, never writes it.
-- `src/main.tsx` + `src/styles.css`: the UI (ymir/ui, themed). `src/save.ts`: the versioned save.
-  `src/analytics.ts`: funnels. `src/boot.ts`: platform, save, analytics.
+- `src/ui/`: React screens: `Title`, `Hud` (objective, plume, action prompt, touch stick), `Dialogue` (portraits,
+  answer tablets, kind feedback), `Latin` (Latin set apart, glosses on tap), `portraits.ts`. `src/styles.css`.
+- `src/save.ts`: the versioned save (v2: name, story, language). `src/analytics.ts`: funnels. `src/boot.ts`.
+- `debug.html` + `src/debug.ts`: the art check (`?at=x,z&mood=&bend=&dist=`), not part of the game.
 - `src/lingua/`: the Latin engine, pure, no Ymir (`index.ts` barrel). `lexicon.ts` (entries with macrons, en/fr,
   grammar point; irregular forms listed, never guessed), `forms.ts` (generator), `analyse.ts` (every reading of a
   form), `check.ts` (the answer ladder: choose/build/endings/write against a frame; feedback codes in

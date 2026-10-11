@@ -492,6 +492,7 @@ const nouns3: Entry[] = [
   N('rēx', 'rēgis', 'm', 'king', 'roi'),
   N('homō', 'hominis', 'm', 'person, human being', 'être humain, homme'),
   N('mercātor', 'mercātōris', 'm', 'merchant, trader', 'marchand'),
+  N('viātor', 'viātōris', 'm', 'traveller', 'voyageur', { note: 'Roadside tombs greet passers-by: SALVE VIATOR.' }),
   N('nōmen', 'nōminis', 'n', 'name', 'nom'),
   N('nāvis', 'nāvis', 'f', 'ship', 'navire, bateau', {
     iStem: 'mixed',

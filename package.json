@@ -13,10 +13,12 @@
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
+    "@fontsource/cinzel": "^5.3.0",
+    "@fontsource/noto-serif": "^5.3.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "three": "0.183.2",
-    "ymir": "github:Radek44/Ymir#210a1937be8455023aaf389396e647052ad39920"
+    "ymir": "github:Radek44/Ymir#691750c569682199b36b32b9923377c60c634bae"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

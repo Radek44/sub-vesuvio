@@ -10,11 +10,16 @@ import { join } from 'node:path';
 const code = (file: string) => readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
 
 describe('architecture', () => {
-  it('the sim imports no renderer or UI, and never uses Math.random or the clock', () => {
-    const src = code(join(__dirname, '../src/sim.ts'));
-    expect(src).not.toMatch(/from ['"](three|react|react-dom)['"]/);
-    expect(src).not.toMatch(/from ['"]ymir\/(three|ui|platform|audio)/);
-    expect(src).not.toMatch(/Math\.random|Date\.now|performance\.now/);
+  it('the sim, the level, the art and the content import no renderer or UI, and never use Math.random or the clock', () => {
+    for (const d of ['sim', 'level', 'art', 'content']) {
+      const dir = join(__dirname, '../src', d);
+      for (const f of readdirSync(dir).filter((x) => /\.tsx?$/.test(x))) {
+        const src = code(join(dir, f));
+        expect({ f, renderer: /from ['"](three|react|react-dom)['"]/.test(src) }).toEqual({ f, renderer: false });
+        expect({ f, host: /from ['"]ymir\/(three|ui|platform|audio)/.test(src) }).toEqual({ f, host: false });
+        expect({ f, clock: /Math\.random|Date\.now|performance\.now/.test(src) }).toEqual({ f, clock: false });
+      }
+    }
   });
 
   it('lingua is pure TypeScript: only its own modules; no DOM, clock or global random', () => {

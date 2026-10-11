@@ -1,0 +1,60 @@
+/**
+ * The Latin in the Prologue is checked by the game (CLAUDE.md): every Latin word in every line parses
+ * with lingua, with the right macrons; every prompt's right answer is accepted and every listed wrong
+ * answer is rejected with its own feedback; the script has no dangling or unreachable nodes.
+ */
+import { describe, expect, it } from 'vitest';
+import { danglingGotos, fill, scriptTexts, unreachable } from 'ymir/dialogue';
+import { PROLOGUE, TALK_TO } from '../src/content/prologue';
+import { check, lintLatin, lintScript, type ChooseTask } from '../src/lingua';
+
+const prompts = Object.values(PROLOGUE).flatMap((n) => (n.then && 'prompt' in n.then && typeof n.then.prompt === 'object' ? [n.then.prompt] : []));
+
+describe('Prologue content', () => {
+  it('every Latin word in the script is one lingua knows, spelled right', () => {
+    expect(lintScript(scriptTexts(PROLOGUE))).toEqual([]);
+  });
+
+  it('every answer option is Latin lingua knows, and every option’s feedback too', () => {
+    for (const p of prompts) {
+      const task = (p.data as { task: ChooseTask }).task;
+      for (const o of task.options) {
+        expect({ id: p.id, o: o.text, issues: lintLatin(fill(o.text, { name: 'Tullia' })) /* the player's own name isn't Latin to check: stand in a name lingua knows */ }).toEqual({ id: p.id, o: o.text, issues: [] });
+        if (o.feedback) for (const lang of ['en', 'fr'] as const) expect({ id: p.id, lang, issues: lintLatin(o.feedback[lang]) }).toEqual({ id: p.id, lang, issues: [] });
+      }
+    }
+  });
+
+  it('every prompt accepts its right answer and rejects each wrong one with its own explanation', () => {
+    expect(prompts.length).toBeGreaterThanOrEqual(4);
+    for (const p of prompts) {
+      const task = (p.data as { task: ChooseTask }).task;
+      expect(task.options.filter((o) => o.right).length).toBe(1);
+      task.options.forEach((o, i) => {
+        const r = check(task, i);
+        if (o.right) expect({ id: p.id, i, grade: r.grade }).toEqual({ id: p.id, i, grade: 'right' });
+        else {
+          expect({ id: p.id, i, grade: r.grade }).toEqual({ id: p.id, i, grade: 'wrong' });
+          expect(r.feedback?.en).toBe(o.feedback?.en);
+          expect(r.feedback?.fr).toBe(o.feedback?.fr);
+        }
+      });
+      // every grade the checker can give routes somewhere (no dead ends)
+      expect(p.results.right ?? p.results.else).toBeTruthy();
+      expect(p.results.wrong ?? p.results.else).toBeTruthy();
+    }
+  });
+
+  it('has no dangling jumps, and everything can be reached from somewhere the player can start', () => {
+    expect(danglingGotos(PROLOGUE)).toEqual([]);
+    expect(unreachable(PROLOGUE, ['arrival', ...Object.values(TALK_TO)])).toEqual([]);
+  });
+
+  it('every line has a speaker the UI can name, and glosses only for words in the line', () => {
+    for (const t of scriptTexts(PROLOGUE)) {
+      const gloss = (t.notes as { gloss?: Record<string, unknown> } | undefined)?.gloss ?? {};
+      const norm = (w: string) => w.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/v/g, 'u');
+      for (const g of Object.keys(gloss)) expect({ at: `${t.node}/${t.at}`, g, present: norm(t.text).includes(norm(g)) }).toEqual({ at: `${t.node}/${t.at}`, g, present: true });
+    }
+  });
+});
