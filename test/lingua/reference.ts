@@ -333,6 +333,7 @@ export const REF_VERBS: Record<string, RefVerb> = {
   audiō: { present: ['audiō', 'audīs', 'audit', 'audīmus', 'audītis', 'audiunt'], imperative: ['audī', 'audīte'], infinitive: 'audīre' },
   veniō: { present: ['veniō', 'venīs', 'venit', 'venīmus', 'venītis', 'veniunt'], imperative: ['venī', 'venīte'], infinitive: 'venīre' },
   // ── Via dell'Abbondanza: reference rows for its words go here ──
+  rogō: { present: ['rogō', 'rogās', 'rogat', 'rogāmus', 'rogātis', 'rogant'], imperative: ['rogā', 'rogāte'], infinitive: 'rogāre' },
   emō: { present: ['emō', 'emis', 'emit', 'emimus', 'emitis', 'emunt'], imperative: ['eme', 'emite'], infinitive: 'emere' },
   vēndō: { present: ['vēndō', 'vēndis', 'vēndit', 'vēndimus', 'vēnditis', 'vēndunt'], imperative: ['vēnde', 'vēndite'], infinitive: 'vēndere' },
   sum: { present: ['sum', 'es', 'est', 'sumus', 'estis', 'sunt'], imperative: ['es', 'este'], infinitive: 'esse' },
