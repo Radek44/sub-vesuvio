@@ -1,0 +1,12 @@
+/* The game's theme for the ymir/ui kit: set these variables, keep the shapes (Ymir docs/UI.md). */
+:root { --y-display: 'Archivo Black', system-ui, sans-serif; --y-ink: #1d1a2e; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1d1a2e; font-family: system-ui, sans-serif; }
+#world { position: fixed; inset: 0; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#ui > * { pointer-events: auto; }
+.top { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; align-items: center; justify-content: space-between; }
+.best { font: 800 14px system-ui; color: #fff; text-shadow: 0 2px 0 #1d1a2e; }
+.bottom { position: absolute; left: 12px; right: 12px; bottom: max(16px, env(safe-area-inset-bottom)); }
+.joyzone { position: absolute; inset: 80px 0 0 0; }
+.hint { position: absolute; bottom: 24px; width: 100%; text-align: center; color: #fff; font: 700 14px system-ui; text-shadow: 0 2px 0 #1d1a2e; }
+.coin { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(#ffe680, #e0a800); border: 2px solid #1d1a2e; }

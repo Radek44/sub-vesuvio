@@ -1,0 +1,35 @@
+name: CI
+on:
+  push:
+  pull_request:
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Let npm fetch the private Ymir
+        # A fine-grained token with read-only Contents access to Radek44/Ymir, saved as the YMIR_TOKEN secret.
+        # The lockfile pins Ymir as git+ssh; these rules send that through HTTPS with the token instead.
+        env:
+          YMIR_TOKEN: ${{ secrets.YMIR_TOKEN }}
+        run: |
+          if [ -z "$YMIR_TOKEN" ]; then
+            echo "::error::Add the YMIR_TOKEN secret (read access to Radek44/Ymir); npm can't install the private engine without it."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${YMIR_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://x-access-token:${YMIR_TOKEN}@github.com/".insteadOf "git@github.com:"
+      - run: npm ci
+      - run: npm run validate
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run smoke
