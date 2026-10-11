@@ -140,6 +140,7 @@ export type Target = Interactable & { talk?: string; shop?: string; take?: ItemI
 export function interactables(level: Level, s?: Pick<State, 'walk' | 'flags' | 'ferox' | 'district'>): Target[] {
   const out: Target[] = [];
   for (const sp of level.spots) {
+    if (s?.flags.includes(`gone:${sp.id}`)) continue; // someone or something that has left the scene
     if (sp.verb === 'shop') { out.push({ id: sp.id, x: sp.x, z: sp.z, radius: Math.max(REACH, sp.r), verb: 'shop', shop: sp.id.slice(5) }); continue; }
     if (sp.verb === 'take') {
       if (s?.flags.includes(`took:${sp.id}`)) continue;

@@ -54,6 +54,16 @@ export const QUESTS: Record<string, Quest> = {
     },
     reward: { en: 'a sun hat (petasus)', fr: 'un chapeau de soleil (petasus)' },
   },
+  feles: {
+    title: { la: 'Fēlēs', en: 'Fortunata’s cat', fr: 'La chatte de Fortunata' },
+    giver: 'Fortunata', district: 'abbondanza', order: ['search', 'back', 'done'],
+    stages: {
+      search: { en: 'Fortunata the lamp-seller lost her cat when the ground shook: small, grey, one white foot. Cats go where the fish is.', fr: 'Fortunata, la marchande de lampes, a perdu sa chatte quand la terre a tremblé : petite, grise, une patte blanche. Les chats vont là où il y a du poisson.' },
+      back: { en: 'The cat is in your satchel, complaining. Take her back to Fortunata on Via dell’Abbondanza.', fr: 'La chatte est dans ta besace, et elle proteste. Ramène-la à Fortunata, sur la Via dell’Abbondanza.' },
+      done: { en: 'Fortunata has her cat back, and her oil jars are safe from mice again.', fr: 'Fortunata a retrouvé sa chatte, et ses jarres d’huile sont de nouveau à l’abri des souris.' },
+    },
+    reward: { en: 'an oil lamp and 2 asses', fr: 'une lampe à huile et 2 as' },
+  },
 };
 
 const lucius = (text: string, extra: object = {}) => ({ who: 'Lucius', text, ...extra });
@@ -204,9 +214,79 @@ export const QUEST_SCRIPT: Script<Cond, Effect> = {
   'q-senex-after': { id: 'q-senex-after', lines: [{ who: 'senex:0', text: 'The hat suits you. Better than it suited me, and I was handsome once.' }] },
 };
 
+// ── Fortunata's cat ── (she asks in her own conversation, abb-fortunata, which starts the quest)
+Object.assign(QUEST_SCRIPT, {
+  'q-feles': {
+    id: 'q-feles', lines: [],
+    then: {
+      cases: [
+        { when: { quest: 'feles', stage: 'done' }, goto: 'q-feles-after' },
+        { when: { quest: 'feles', stage: 'back' }, goto: 'q-feles-back' },
+      ],
+      else: 'abb-fortunata',
+    },
+  },
+  'q-feles-cat': {
+    id: 'q-feles-cat', lines: [],
+    then: { cases: [{ when: { quest: 'feles', stage: 'search' }, goto: 'q-feles-found' }], else: 'q-feles-idle' },
+  },
+  'q-feles-idle': {
+    id: 'q-feles-idle',
+    lines: [{ who: 'you', text: 'A small grey cat with one white foot, washing herself among the amphorae and watching the fish baskets. She ignores you completely.' }],
+  },
+  'q-feles-found': {
+    id: 'q-feles-found',
+    lines: [{ who: 'you', text: 'Small, grey, one white foot, watching the fish baskets as if they owed her money. It’s her! Say what you see, the Roman way.' }],
+    then: {
+      prompt: {
+        id: 'quid-vides-feles', who: 'you', prompt: 'What do you see?',
+        data: choose([
+          { text: '«Fēlem videō.»', right: true },
+          { text: '«Fēlēs videō.»', feedback: { en: 'Nearly! She is what you see, so the cat takes the accusative: «fēlem».', fr: 'Presque ! C’est elle que tu vois, donc le chat prend l’accusatif : «fēlem».' } },
+          { text: '«Canem videō.»', feedback: { en: '«Canem» is a dog. Ferox would be flattered, the cat would not.', fr: '«Canem», c’est un chien. Ferox serait flatté, la chatte beaucoup moins.' } },
+        ]),
+        results: { right: 'q-feles-scoop', else: 'q-feles-found' },
+        do: { right: [{ quest: 'feles', stage: 'back' }, { set: 'gone:cat' }] },
+      },
+    },
+  },
+  'q-feles-scoop': {
+    id: 'q-feles-scoop',
+    lines: [{ who: 'you', text: '«Fēlem videō!» You scoop her up. She grumbles, turns round twice and settles in your satchel as if she owned it.', notes: { gloss: { fēlem: { en: 'cat (object)', fr: 'chat (complément)' }, videō: { en: 'I see', fr: 'je vois' } } } }],
+  },
+  'q-feles-back': {
+    id: 'q-feles-back',
+    lines: [
+      { who: 'you', text: 'You open your satchel. A grey head with yellow eyes pops out and looks around, unimpressed.' },
+      { who: 'Fortunata', text: 'Oh! And what is that in your bag?' },
+    ],
+    then: {
+      prompt: {
+        id: 'quid-est-feles', who: 'Fortunata', prompt: 'Tell her what it is.',
+        data: choose([
+          { text: '«Fēlēs est.»', right: true },
+          { text: '«Fēlem est.»', feedback: { en: 'With «est» (it is), the noun stays in the nominative: «fēlēs est».', fr: 'Avec «est» (c’est), le nom reste au nominatif : «fēlēs est».' } },
+          { text: '«Canis est.»', feedback: { en: '«Canis» is a dog. Look again: one white foot, and a very low opinion of you.', fr: '«Canis», c’est un chien. Regarde mieux : une patte blanche, et une très mauvaise opinion de toi.' } },
+        ]),
+        results: { right: 'q-feles-thanks', else: 'q-feles-again' },
+        do: { right: [{ give: 'lamp' }, { coins: 2 }, { quest: 'feles', stage: 'done' }] },
+      },
+    },
+  },
+  'q-feles-again': { id: 'q-feles-again', lines: [{ who: 'Fortunata', text: 'Hmm? Say it again, properly. What is it?' }], then: { goto: 'q-feles-back' } },
+  'q-feles-thanks': {
+    id: 'q-feles-thanks',
+    lines: [
+      { who: 'Fortunata', text: '«Fēlēs mea!» My cat! Where was she? The harbour? Of course she was. The fish.', notes: { gloss: { mea: { en: 'my', fr: 'ma' } } } },
+      { who: 'Fortunata', text: 'Here: my best clay lamp, and two asses. When it’s dark, you’ll think of us. «Grātiās!»' },
+    ],
+  },
+  'q-feles-after': { id: 'q-feles-after', lines: [{ who: 'Fortunata', text: 'She hasn’t left the oil jars since. Not one mouse. Need a lamp? I give a good price to cat-finders.' }] },
+} satisfies Script<Cond, Effect>);
+
 /** These conversations replace a person's usual one (their favour wraps their small talk). */
 export const QUESTS_TALK: Record<string, string> = {
-  kids: 'q-tali', thermopolium: 'q-panis', 'old-man': 'q-senex',
+  kids: 'q-tali', thermopolium: 'q-panis', 'old-man': 'q-senex', 'abb-fortunata': 'q-feles', cat: 'q-feles-cat',
 };
 
 export { la };

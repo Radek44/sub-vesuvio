@@ -99,7 +99,7 @@ export const ABBONDANZA: Script<Cond, Effect> = {
           { text: '«Fēlem nōn vidēs.»', feedback: { en: '«Vidēs» is “you see”: that tells her she doesn’t see the cat. She knows! Answer about yourself: «videō», I see.', fr: '«Vidēs», c’est “tu vois” : tu lui dis qu’elle ne voit pas le chat. Elle le sait ! Réponds pour toi : «videō», je vois.' } },
         ]),
         results: { right: 'abb-fortunata-thanks', else: 'abb-fortunata-again' },
-        do: { right: [{ set: 'abbAskedCat' }] },
+        do: { right: [{ set: 'abbAskedCat' }, { quest: 'feles', stage: 'search' }] },
       },
     },
   },

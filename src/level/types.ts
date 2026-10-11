@@ -12,7 +12,11 @@ export type DistrictId = 'portaMarina' | 'forum' | 'abbondanza';
 export type Text = { en: string; fr: string };
 export type Named = Text & { la: string };
 
-export interface Placed { kind: string; variant: number; x: number; y: number; z: number; rotate?: number }
+export interface Placed {
+  kind: string; variant: number; x: number; y: number; z: number; rotate?: number;
+  /** A story flag that takes it out of the world (Fortunata's cat, once she's home). */
+  goneWith?: string;
+}
 export interface Source { x: number; y: number; z: number }
 export type Verb = 'speak' | 'read' | 'look' | 'drink' | 'enter' | 'command' | 'knock' | 'shop' | 'take' | 'go';
 /** Something the hero can act on: its conversation is `TALK_TO[id]` in the content, or a shop, or an exit. */

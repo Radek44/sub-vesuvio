@@ -151,7 +151,7 @@ export class World {
     if (!this.started) { this.follow.snap(this.focus); this.started = true; }
     else this.follow.follow(this.focus, dt);
     this.env.update(dt, this.follow.target, this.camera, 0.35);
-    town.update(dt, this.follow.target, this.camera, { x: h.x, z: h.z }, (id) => s.flags.includes(`took:${id}`));
+    town.update(dt, this.follow.target, this.camera, { x: h.x, z: h.z }, (f) => s.flags.includes(f));
     // labels fade in as the hero comes near; none while a conversation or a shop is open
     for (const l of this.labels) {
       const p = l.at();

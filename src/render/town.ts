@@ -16,6 +16,7 @@ import { cypress, fig, olive, oleander, pergola, stonePine, tuft } from '../art/
 import type { Level } from '../level/types';
 import { RING_VOX, exitStreets, ringWorld } from '../art/city';
 import { itemModel } from '../art/items';
+import { cat } from '../art/cat';
 import { PEOPLE_VOX } from '../art/people';
 import type { ItemId } from '../content/items';
 import { Backdrop } from './backdrop';
@@ -56,6 +57,8 @@ export class TownView {
   private occluders: { id: string; view: WorldView; box: [number, number, number, number]; mat: THREE.MeshLambertMaterial; shown: number }[] = [];
   private waters: Water[] = [];
   private pickups: { id: string; g: THREE.Group; y: number; seed: number }[] = [];
+  /** Things the story takes away (a flag hides them). */
+  private goners: { flag: string; g: THREE.Group }[] = [];
   private mats: THREE.Material[] = [];
   private look = voxelLook({ voxel: VOX });
   private ringLook = voxelLook({ voxel: RING_VOX, edges: 0.06 });
@@ -94,8 +97,19 @@ export class TownView {
       g.traverse((c) => { c.castShadow = t.kind !== 'tuft'; c.receiveShadow = true; });
       this.root.add(g);
     }
+    const smallLook = voxelLook({ voxel: PEOPLE_VOX, edges: 0.08 });
+    this.mats.push(smallLook);
     for (const p of level.props) {
       if (p.kind === 'talus') continue; // drawn as a pickup below
+      if (p.kind === 'cat') {
+        const g = modelGroup('animal:cat', cat, PEOPLE_VOX, { solid: smallLook });
+        g.position.set(p.x * VOX, p.y * VOX, p.z * VOX);
+        g.rotation.y = ((p.rotate ?? 0) * Math.PI) / 2;
+        g.traverse((c) => { c.castShadow = true; });
+        this.root.add(g);
+        if (p.goneWith) this.goners.push({ flag: p.goneWith, g });
+        continue;
+      }
       const make = PROPS[p.kind];
       if (!make) continue;
       const g = modelGroup(`prop:${p.kind}:${p.variant}`, () => make(p.variant), VOX, { solid: p.kind === 'pergola' ? (mats.get('oleander') ?? this.look) : this.look });
@@ -172,7 +186,7 @@ export class TownView {
   syncAll(): void { this.view.syncAll(); this.ring.syncAll(); for (const o of this.occluders) o.view.syncAll(); }
 
   /** Per frame: lamps, smoke, the curve, the mountain, pickups turning (taken ones gone), the gate stepping aside. */
-  update(dt: number, focus: THREE.Vector3, camera: THREE.PerspectiveCamera, heroVox: { x: number; z: number }, taken: (id: string) => boolean): void {
+  update(dt: number, focus: THREE.Vector3, camera: THREE.PerspectiveCamera, heroVox: { x: number; z: number }, has: (flag: string) => boolean): void {
     LOOK.uBendFrom.value = camera.position.distanceTo(focus) * this.bendFrom;
     this.lamps.update(dt, focus);
     this.emitters.update(dt, focus, LOOK.uNight.value, 30);
@@ -181,11 +195,12 @@ export class TownView {
     if (this.env.sky) this.env.sky.uniforms.uDip.value = -dip;
     const t = LOOK.uTime.value;
     for (const p of this.pickups) {
-      p.g.visible = !taken(p.id);
+      p.g.visible = !has(`took:${p.id}`);
       if (!p.g.visible) continue;
       p.g.rotation.y = t * 0.8 + p.seed;
       p.g.position.y = p.y + 0.06 + Math.sin(t * 2.2 + p.seed) * 0.04;
     }
+    for (const g of this.goners) g.g.visible = !has(g.flag);
     for (const o of this.occluders) {
       const [x0, x1, z0, z1] = o.box;
       const under = heroVox.x >= x0 && heroVox.x <= x1 && heroVox.z >= z0 && heroVox.z <= z1;

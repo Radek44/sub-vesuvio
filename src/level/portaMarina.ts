@@ -91,6 +91,9 @@ export function buildPortaMarina(): Level {
   for (const bz of [150, 260, 330]) for (let y = 5; y <= 8; y++) for (let x = QUAY + 2; x <= QUAY + 3; x++) for (let z = bz; z <= bz + 1; z++) w.set(x, y, z, vary(P.basalt, x, y, z, 0.05));
   L.props.push({ kind: 'ship', variant: 0, x: QUAY - 26, y: -14, z: 236 });
   for (let i = 0; i < 4; i++) L.props.push({ kind: 'amphora', variant: i, x: QUAY + 4 + (i % 2) * 3, y: 5, z: 246 + i * 3 });
+  // Fortunata's cat, run all the way down to the harbour after the tremor: she's watching the fish baskets
+  L.props.push({ kind: 'cat', variant: 0, x: QUAY + 12, y: 5, z: 251, rotate: 3, goneWith: 'gone:cat' });
+  L.spots.push({ id: 'cat', x: QUAY + 12, y: 5, z: 251, r: 12, verb: 'look' });
   // ── Via Marina ──
   street(w, { x0: QUAY + 10, x1: GATE.x0 - 1, zN: ROAD_N, zS: ROAD_S, walk: WALK, y: roadY, steps: [] });
   street(w, { x0: GATE.x1 + 1, x1: W - 1, zN: ROAD_N, zS: ROAD_S, walk: WALK, y: roadY, steps: [486] });
