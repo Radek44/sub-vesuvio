@@ -16,7 +16,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "three": "0.183.2",
-    "ymir": "github:Radek44/Ymir#605683a4ece50d5cd6fe7a884aa9a378c871f960"
+    "ymir": "github:Radek44/Ymir#210a1937be8455023aaf389396e647052ad39920"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
