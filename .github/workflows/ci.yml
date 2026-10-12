@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Don't keep the job's own GITHUB_TOKEN in git config: its auth header would reach github.com
+          # before the YMIR_TOKEN in the rewritten URL below, and GitHub answers 404 for the private Ymir.
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: 22
