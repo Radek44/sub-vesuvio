@@ -122,7 +122,8 @@ function frame(dt: number, t: number): void {
   const view = store.get();
   if (!world) return;
   if (view.screen === 'loading') {
-    const left = world.preload(view.sim, 24);
+    // a loading screen needs no smooth frame rate: mesh in big slices, so slow machines (and software GL) load fast
+    const left = world.preload(view.sim, 150);
     store.patch({ loading: 1 - left / total });
     if (left === 0) store.patch({ screen: 'play', loading: 1 });
     world.sync(view.sim, t, dt, true);

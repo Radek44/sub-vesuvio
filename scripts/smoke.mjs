@@ -19,7 +19,8 @@ try {
   await page.waitForSelector('#world canvas');
   await page.fill('[data-ui=name]', 'Milo');
   await page.click('[data-ui=begin]');
-  await page.waitForSelector('[data-ui=dialogue]', { timeout: 60_000 });
+  // the town meshes behind the loading screen: software GL on a CI runner is slow
+  await page.waitForSelector('[data-ui=dialogue]', { timeout: 120_000 });
   // the arrival: click through until the conversation ends
   // (wait for each click to land in the sim before the next: software rendering is slow)
   for (let guard = 0; guard < 20 && (await page.evaluate(() => !!window.__game.sim().talk)); guard++) {
