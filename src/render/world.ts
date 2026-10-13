@@ -10,7 +10,7 @@ import { Anchors, Environment, FollowCamera, LOOK, Stage, applyPose, breathe, cr
 import { CAST, tagFor } from '../art/people';
 import { VOX } from '../art/palette';
 import type { Level } from '../level/types';
-import { WALK, type State } from '../sim/sim';
+import { interactables, WALK, type State } from '../sim/sim';
 import { personRig, poseDog, Townsfolk } from './actors';
 import { BAY } from './moods';
 import { TownView } from './town';
@@ -95,6 +95,9 @@ export class World {
   private post: Post | null = null;
   private meter: HTMLElement | null = null;
   private meterT = 0;
+  /** Where a click sent the hero: a ring on the ground. */
+  private mark = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.34, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xfff3dd, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
+  private ray = new THREE.Raycaster();
 
   constructor(host: HTMLElement, private o: WorldOptions = {}) {
     const phone = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
@@ -108,7 +111,9 @@ export class World {
     LOOK.uBend.value = 0.018; // a gentle roll: the Forum's temples stay in view across the piazza
     this.hero = personRig('hero', CAST.hero);
     this.heroHat = personRig('hero:hat', { ...CAST.hero, hat: 0xc9a868 });
-    this.stage.scene.add(this.hero.root, this.heroHat.root);
+    this.stage.scene.add(this.hero.root, this.heroHat.root, this.mark);
+    this.mark.visible = false;
+    this.mark.renderOrder = 3;
     xray(this.hero.root);
     xray(this.heroHat.root);
     this.anchors = new Anchors((x, y, z) => this.stage.toScreen(x, y, z));
@@ -193,6 +198,13 @@ export class World {
     const moving = s.speed > 1 && !busy;
     this.walkT += dt * (s.speed / WALK);
     applyPose(rig, s.talk ? talk(t, 0.3) : moving ? walk(this.walkT, Math.min(1, s.speed / WALK)) : breathe(t, 0.3));
+    // where a click is taking the hero (a place: someone clicked on is marked by walking up to them)
+    const end = s.route && !s.route.act ? s.route.path[s.route.path.length - 1] : undefined;
+    this.mark.visible = !!end;
+    if (end) {
+      this.mark.position.set(end.x * VOX, (this.level!.groundAt(end.x, end.z) + 0.3) * VOX, end.z * VOX);
+      this.mark.scale.setScalar(1 + 0.12 * Math.sin(t * 6));
+    }
     // Ferox, when he's in this district
     const f = s.ferox;
     const dog = folk.ferox;
@@ -230,6 +242,26 @@ export class World {
       const st = this.stage.stats(), r = this.stage.renderer;
       this.meter.textContent = `${st.fps} fps · ${r.getPixelRatio()}× · ${r.info.render.calls} draws${st.steps.length ? ` · dropped: ${st.steps.join(', ')}` : ''}`;
     }
+  }
+
+  /**
+   * What a click or a tap at (x, y) on the canvas (CSS pixels) means: someone or something to walk up to and
+   * act on, when one is drawn near the pointer; else the place on the ground the pointer is over (voxels).
+   */
+  pick(px: number, py: number, s: State): { x: number; z: number; act?: string } | null {
+    const L = this.level;
+    if (!L) return null;
+    let best: { x: number; z: number; act: string } | null = null, bestD = 44;
+    for (const it of interactables(L, s)) {
+      const p = this.stage.toScreen(it.x * VOX, (L.groundAt(it.x, it.z) + 8) * VOX, it.z * VOX);
+      const d = Math.hypot(p.x - px, p.y - py);
+      if (p.visible && d < bestD) { best = { x: it.x, z: it.z, act: it.id }; bestD = d; }
+    }
+    if (best) return best;
+    this.ray.setFromCamera(new THREE.Vector2((px / this.stage.width) * 2 - 1, 1 - (py / this.stage.height) * 2), this.camera);
+    const o = this.ray.ray.origin, d = this.ray.ray.direction;
+    const hit = L.world.raycast({ x: o.x / VOX, y: o.y / VOX, z: o.z / VOX }, d, 900);
+    return hit ? { x: hit.x + 0.5, z: hit.z + 0.5 } : null;
   }
 
   /** Zoom out (positive) or in (negative), in steps of the whole range; it eases there. */

@@ -78,8 +78,8 @@ export function start(host: HTMLElement, save: Save): () => void {
   analytics.step('boot', 'load_finished');
   analytics.step('boot', 'title_shown');
   world.stage.start((dt, t) => frame(dt, t));
-  const unzoom = bindZoom();
-  return () => { unbind(); unzoom(); world?.dispose(); world = null; };
+  const unzoom = bindZoom(), untap = bindTap();
+  return () => { unbind(); unzoom(); untap(); world?.dispose(); world = null; };
 }
 
 /** Is this event over the town itself (the canvas, or the stick's zone that covers it), not a panel? */
@@ -130,6 +130,29 @@ function bindZoom(): () => void {
     document.removeEventListener('pointerup', up);
     document.removeEventListener('pointercancel', up);
   };
+}
+
+/**
+ * A click or a tap on the town walks the hero there, or up to whoever or whatever was clicked, to act on
+ * it. A drag is the stick (ymir/ui `Joystick` covers the town), so only a short press that barely moved counts.
+ */
+function bindTap(): () => void {
+  let down: { id: number; x: number; y: number; t: number } | null = null;
+  const press = (e: PointerEvent) => { down = e.isPrimary && e.button === 0 && overTown(e) ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null; };
+  const release = (e: PointerEvent) => {
+    const d = down;
+    down = null;
+    if (!d || d.id !== e.pointerId || !world) return;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || performance.now() - d.t > 450) return;
+    const v = store.get();
+    if (v.screen !== 'play' || v.panel || v.sim.talk || v.sim.shop) return;
+    const r = world.stage.canvas.getBoundingClientRect();
+    const g = world.pick(e.clientX - r.left, e.clientY - r.top, v.sim);
+    if (g) { queue({ goto: g }); analytics.track('walk_to', { act: g.act ? 1 : 0 }); }
+  };
+  document.addEventListener('pointerdown', press);
+  document.addEventListener('pointerup', release);
+  return () => { document.removeEventListener('pointerdown', press); document.removeEventListener('pointerup', release); };
 }
 
 /** Start (`fresh`: a new journey, even under the same name) or continue: from the title screen. */
@@ -216,7 +239,7 @@ function frame(dt: number, t: number): void {
   let s = view.sim;
   const before = s;
   pendingAct ||= input.pressed('act') || !!queued.act;
-  const extra: Partial<Input> = { pick: queued.pick, answer: queued.answer, buy: queued.buy, close: queued.close };
+  const extra: Partial<Input> = { pick: queued.pick, answer: queued.answer, buy: queued.buy, close: queued.close, goto: queued.goto };
   let stepped = false;
   for (acc += dt * 1000; acc >= STEP_MS; acc -= STEP_MS) {
     // the stick is screen-relative; the camera looks north, so screen up is −z
@@ -224,6 +247,7 @@ function frame(dt: number, t: number): void {
     pendingAct = false;
     extra.pick = extra.answer = extra.buy = undefined;
     extra.close = undefined;
+    extra.goto = undefined;
     stepped = true;
     if (s.district !== before.district) break;
   }

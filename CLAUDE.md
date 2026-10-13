@@ -12,7 +12,8 @@ fixes and features go to Ymir first (its roadmap is §13 of the design), then mo
 - `src/sim/sim.ts`: the rules. PURE fixed-step (60 Hz) `step(state, input, level) → state`: the hero on ymir/voxel
   `moveBody` against the level's own voxels, acting on the nearest thing in reach, conversations on ymir/dialogue
   `step` (the sim lends it the story flags and lingua's checker, and applies the effects), Ferox guarding or
-  following, the toll collector holding the gate. A `StepSim` for ymir/testkit.
+  following, the toll collector holding the gate. A `StepSim` for ymir/testkit. `route.ts`: click or tap to
+  walk (a path over the level's ground on half-metre cells, ymir/core `findPath`, pulled straight).
 - `src/level/`: the districts, PURE. `types.ts` (the Level contract: exits and spawns, shops, walkers, the `ring`
   of city around), `index.ts` (`district(id)`: built on demand, two kept), `portaMarina.ts`, `forum.ts`,
   `abbondanza.ts`. Walking into an exit travels (sim `travel`); Ferox comes if he follows. Walker loops never

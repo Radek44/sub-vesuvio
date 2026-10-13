@@ -18,8 +18,14 @@ npm run build      # dist/, a static site
 npm run smoke      # the built game boots in Chromium with no errors
 ```
 
+**Playing:** click or tap where to go, or on someone or something to walk up to it and act (talk, read,
+buy, pick up). Or drag anywhere as a stick, or use WASD (Shift runs) and E, Space or Enter to act. The mouse
+wheel, a trackpad or touch pinch, or + and − zoom from close up to nearly top-down. I/B satchel, J journal,
+M map, Esc closes; 1–9 pick an answer.
+
 QA switches: `?platform=memory` (no saves kept), `?analytics=debug` (events to the console), `?qa` (state hook
-for browser checks).
+for browser checks), `?fps` (frame meter and the quality steps taken), `?quality=high|balanced|low`, `?ladder=0`
+(never step quality down: screenshots on software rendering).
 
 **CI setup:** Ymir is a private repository, so CI needs a token to install it. Create a fine-grained personal
 access token with read-only *Contents* access to `Radek44/Ymir`, and add it to this repository as the Actions
