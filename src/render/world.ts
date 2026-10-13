@@ -29,6 +29,13 @@ const TAG_FAR = 96, TAG_NEAR = 64;
 const SIGN_FAR = 150, SIGN_NEAR = 110;
 
 /**
+ * Zoom, from a close three-quarter view (40° down, 18 m away) to a high, nearly top-down one (69°, 48 m).
+ * The start is the classic view (26 m, 0.83 rad).
+ */
+const ZOOM_START = 0.27;
+const zoomView = (z: number) => ({ distance: 18 + 30 * z, pitch: 0.7 + 0.5 * z });
+
+/**
  * A silhouette where something stands behind a roof or a wall: drawn only where the depth test fails
  * (GreaterDepth), so the hero never disappears under the eaves of a portico. Both passes are opaque, so they
  * sort by render order: the town (0), then the silhouette (1), then the actor itself (2). Only the town is
@@ -71,7 +78,12 @@ export class World {
   town: TownView | null = null;
   folk: Townsfolk | null = null;
   level: Level | null = null;
-  private follow = new FollowCamera(this.camera, { distance: 26, pitch: 0.82, deadZone: 0.8, lag: 5 });
+  /** The follow camera reads these every frame: zooming changes them (`zoomBy`). */
+  private view = { distance: 26, pitch: 0.82, deadZone: 0.8, lag: 5 };
+  private follow = new FollowCamera(this.camera, this.view);
+  /** 0 is the closest three-quarter view, 1 the highest, most top-down one; eased toward `zoomTo`. */
+  private zoom = ZOOM_START;
+  private zoomTo = ZOOM_START;
   private hero: Rig;
   private heroHat: Rig;
   private started = false;
@@ -198,6 +210,8 @@ export class World {
     // camera: follow the hero a little ahead of where they're walking
     const ahead = moving ? 1.2 : 0;
     this.focus.set(h.x * VOX + Math.sin(s.facing) * ahead, h.y * VOX, h.z * VOX + Math.cos(s.facing) * ahead);
+    this.zoom += (this.zoomTo - this.zoom) * Math.min(1, dt * 10);
+    Object.assign(this.view, zoomView(this.zoom));
     if (!this.started) { this.follow.snap(this.focus); this.started = true; }
     else this.follow.follow(this.focus, dt);
     this.env.update(dt, this.follow.target, this.camera, 0.35);
@@ -217,6 +231,9 @@ export class World {
       this.meter.textContent = `${st.fps} fps · ${r.getPixelRatio()}× · ${r.info.render.calls} draws${st.steps.length ? ` · dropped: ${st.steps.join(', ')}` : ''}`;
     }
   }
+
+  /** Zoom out (positive) or in (negative), in steps of the whole range; it eases there. */
+  zoomBy(d: number): void { this.zoomTo = Math.max(0, Math.min(1, this.zoomTo + d)); }
 
   /** The hero's head in screen pixels (for the action prompt), or null when it's off screen. */
   heroScreen(s: State): { x: number; y: number } | null {

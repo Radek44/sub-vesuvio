@@ -38,6 +38,7 @@ export const store = createStore<View>({ screen: 'title', sim: create(''), save:
 export const input = createInput({
   act: ['KeyE', 'Space', 'Enter', 'pad:A'], run: ['ShiftLeft', 'ShiftRight', 'pad:B'],
   bag: ['KeyI', 'KeyB', 'pad:Y'], journal: ['KeyJ', 'pad:X'], map: ['KeyM', 'pad:Back'], back: ['Escape', 'pad:Start'],
+  zoomIn: ['Equal', 'NumpadAdd'], zoomOut: ['Minus', 'NumpadSubtract'],
 });
 
 let world: World | null = null;
@@ -77,7 +78,58 @@ export function start(host: HTMLElement, save: Save): () => void {
   analytics.step('boot', 'load_finished');
   analytics.step('boot', 'title_shown');
   world.stage.start((dt, t) => frame(dt, t));
-  return () => { unbind(); world?.dispose(); world = null; };
+  const unzoom = bindZoom();
+  return () => { unbind(); unzoom(); world?.dispose(); world = null; };
+}
+
+/** Is this event over the town itself (the canvas, or the stick's zone that covers it), not a panel? */
+const overTown = (e: Event) => !!(e.target as Element | null)?.closest?.('canvas, [data-joy]');
+
+/**
+ * Zoom the camera: the mouse wheel and a trackpad pinch (Chrome and Firefox send it as a wheel with Ctrl,
+ * Safari as gesture events) over the town, and a two-finger pinch on a touch screen. The stick's zone covers
+ * the town, so events are watched on the document; over a panel the wheel scrolls the panel instead.
+ * The keys are input actions.
+ */
+function bindZoom(): () => void {
+  const wheel = (e: WheelEvent) => {
+    if (!overTown(e)) return;
+    e.preventDefault();
+    const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    world?.zoomBy(Math.max(-0.15, Math.min(0.15, px / (e.ctrlKey ? 120 : 600))));
+  };
+  let scale = 1;
+  const gStart = (e: Event) => { if (overTown(e)) { e.preventDefault(); scale = 1; } };
+  const gChange = (e: Event) => { if (!overTown(e)) return; e.preventDefault(); const k = (e as Event & { scale: number }).scale; world?.zoomBy((scale - k) * 0.8); scale = k; };
+  const touches = new Map<number, { x: number; y: number }>();
+  let apart = 0;
+  const spread = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  const down = (e: PointerEvent) => { if (e.pointerType !== 'touch') return; touches.set(e.pointerId, { x: e.clientX, y: e.clientY }); apart = touches.size === 2 ? spread() : 0; };
+  const move = (e: PointerEvent) => {
+    if (!touches.has(e.pointerId)) return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size !== 2) return;
+    const d = spread();
+    if (apart) world?.zoomBy((apart - d) / 500);
+    apart = d;
+  };
+  const up = (e: PointerEvent) => { touches.delete(e.pointerId); apart = 0; };
+  document.addEventListener('wheel', wheel, { passive: false });
+  document.addEventListener('gesturestart', gStart);
+  document.addEventListener('gesturechange', gChange);
+  document.addEventListener('pointerdown', down);
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+  document.addEventListener('pointercancel', up);
+  return () => {
+    document.removeEventListener('wheel', wheel);
+    document.removeEventListener('gesturestart', gStart);
+    document.removeEventListener('gesturechange', gChange);
+    document.removeEventListener('pointerdown', down);
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    document.removeEventListener('pointercancel', up);
+  };
 }
 
 /** Start (`fresh`: a new journey, even under the same name) or continue: from the title screen. */
@@ -154,6 +206,8 @@ function frame(dt: number, t: number): void {
   if (!world) return;
   if (view.screen === 'loading') return; // the loading screen runs its own loop (`load`)
   if (view.screen !== 'play') { world.sync(view.sim, t, dt); return; }
+  if (input.down('zoomIn')) world.zoomBy(-dt * 0.8);
+  if (input.down('zoomOut')) world.zoomBy(dt * 0.8);
   // panels: their keys toggle them; Escape closes whatever is open (a panel, then a shop)
   for (const p of ['bag', 'journal', 'map'] as const) if (input.pressed(p) && !view.sim.talk) openPanel(p);
   if (input.pressed('back')) { if (store.get().panel) openPanel(null); else if (view.sim.shop) queue({ close: true }); }
