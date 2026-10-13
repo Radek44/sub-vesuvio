@@ -34,9 +34,10 @@ fixes and features go to Ymir first (its roadmap is §13 of the design), then mo
 - `src/content/prologue.ts`: the Prologue's conversations as data (Script v2): «Latin» in guillemets, `notes.la`
   for all-Latin lines, `notes.gloss` for tap meanings, prompts graded by lingua, objectives.
 - `src/render/`: the Three.js half; reads state, never writes it. `town.ts` (the level on screen: WorldView,
-  trees, props, water, lamps, emitters, the gate's upper mass that steps aside), `backdrop.ts` (the sea, Vesuvius
-  and its plume on the curved horizon), `actors.ts` (rigs, Ferox, poses), `world.ts` (the stage, the hero, the
-  camera), `moods.ts`.
+  trees, props, water, lamps, emitters, the gate's upper mass that steps aside), `ground.ts` (the walkable ground
+  drawn as one textured surface instead of voxels; the sim still uses the voxels; Porta Marina only, a spike),
+  `backdrop.ts` (the sea, Vesuvius and its plume on the curved horizon), `actors.ts` (rigs, Ferox, poses),
+  `world.ts` (the stage, the hero, the camera), `moods.ts`.
 - `src/game.ts`: the controller, the only place that combines sim, input, saves, analytics and the world.
 - `src/ui/`: React screens: `Title`, `Hud` (objective, plume, purse, panel buttons, toasts, action prompt, touch stick),
   `Shop` (the counter), `Panels` (Pēra: satchel, Negōtia: journal, Forma: map), `names.ts`, `portraits.ts`

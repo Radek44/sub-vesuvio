@@ -72,6 +72,8 @@ export function start(host: HTMLElement, save: Save): () => void {
     quality: q === 'high' || q === 'balanced' || q === 'low' ? q : undefined,
     ladder: qaParam('ladder') === '0' ? false : undefined,
     fps: qaParam('fps') !== null,
+    // `?ground=voxel` draws every district's ground in voxels, `?ground=surface` every district's as a surface
+    surfaceGround: qaParam('ground') === 'voxel' ? [] : qaParam('ground') === 'surface' ? ['portaMarina', 'forum', 'abbondanza'] : undefined,
   });
   world.setLang(save.lang);
   world.setGlosses(save.glosses);

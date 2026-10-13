@@ -21,6 +21,8 @@ export interface WorldOptions {
   ladder?: false;
   /** Show frames per second and the quality steps taken (`?fps`). */
   fps?: boolean;
+  /** Which districts draw their ground as a surface instead of voxels (the spike: Porta Marina). */
+  surfaceGround?: readonly string[];
   plume?: number;
 }
 
@@ -129,7 +131,7 @@ export class World {
     for (const l of this.labels) { l.unbind(); l.el.remove(); }
     this.labels = [];
     this.level = level;
-    this.town = new TownView(this.stage.scene, this.env, level, { plume: this.o.plume ?? 0.05 });
+    this.town = new TownView(this.stage.scene, this.env, level, { plume: this.o.plume ?? 0.05, ground: (this.o.surfaceGround ?? ['portaMarina']).includes(level.id) });
     this.folk = new Townsfolk(level);
     this.stage.scene.add(this.folk.group);
     xray(this.folk.ferox.root);
@@ -242,7 +244,8 @@ export class World {
     if (this.meter && (this.meterT += dt) > 0.5) {
       this.meterT = 0;
       const st = this.stage.stats(), r = this.stage.renderer;
-      this.meter.textContent = `${st.fps} fps · ${r.getPixelRatio()}× · ${r.info.render.calls} draws${st.steps.length ? ` · dropped: ${st.steps.join(', ')}` : ''}`;
+      const gr = this.town?.ground;
+      this.meter.textContent = `${st.fps} fps · ${r.getPixelRatio()}× · ${r.info.render.triangles} tris${gr ? ` · ground ${gr.triangles} tris` : ''}${st.steps.length ? ` · dropped: ${st.steps.join(', ')}` : ''}`;
     }
   }
 

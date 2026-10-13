@@ -26,7 +26,8 @@ button, or the title screen) shows their meanings underneath, in the hint langua
 
 QA switches: `?platform=memory` (no saves kept), `?analytics=debug` (events to the console), `?qa` (state hook
 for browser checks), `?fps` (frame meter and the quality steps taken), `?quality=high|balanced|low`, `?ladder=0`
-(never step quality down: screenshots on software rendering).
+(never step quality down: screenshots on software rendering), `?ground=voxel|surface` (the ground spike: drawn as
+voxels everywhere, or as a surface everywhere; by default Porta Marina's is a surface).
 
 **CI setup:** Ymir is a private repository, so CI needs a token to install it. Create a fine-grained personal
 access token with read-only *Contents* access to `Radek44/Ymir`, and add it to this repository as the Actions
