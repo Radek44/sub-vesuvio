@@ -55,7 +55,7 @@ export function buildPortaMarina(): Level {
     id: 'portaMarina', name: { la: 'Porta Marina', en: 'The Sea Gate', fr: 'La porte de la Mer' },
     world: w, width: W, depth: D, occluders: [{ id: 'gate', world: upper, x0: GATE.x0 - 8, x1: GATE.x1 + 8, z0: 160, z1: 240 }],
     trees: [], props: [], water: [], fires: [], smoke: [], jets: [], spots: [], npcs: [], walkers: [], shops: [],
-    exits: [{ id: 'to-forum', to: 'forum', arrive: 'west', x0: W - 4, x1: W - 1, z0: ROAD_N - WALK, z1: ROAD_S + WALK, label: { en: 'To the Forum', fr: 'Vers le Forum' } }],
+    exits: [{ id: 'to-forum', to: 'forum', arrive: 'west', x0: W - 4, x1: W - 1, z0: ROAD_N - WALK, z1: ROAD_S + WALK, label: { la: 'Ad Forum', en: 'To the Forum', fr: 'Vers le Forum' } }],
     spawns: SPAWNS,
     groundAt: (x, z) => (w.topAt(Math.round(x), Math.round(z), roadY(x) + 16, -30) ?? roadY(x)) + 1,
     ring: RING,

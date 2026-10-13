@@ -20,6 +20,7 @@ import { cat } from '../art/cat';
 import { PEOPLE_VOX } from '../art/people';
 import type { ItemId } from '../content/items';
 import { Backdrop } from './backdrop';
+import { buildGround, type GroundStats } from './ground';
 
 const TREES: Record<string, (v: number) => Model> = { pine: stonePine, cypress, olive, fig, oleander, tuft };
 /** How far each tree kind bends (world units per unit of height), and where its sway starts (voxels up). */
@@ -44,7 +45,11 @@ const PROPS: Record<string, (v: number) => Model> = {
   pergola: (v) => pergola(30 + v * 6, 14, v), ship: () => ship(), grapes: () => crate('grapes'), figs: () => crate('figs'), fish: () => crate('fish'),
 };
 
-export interface TownOptions { plume?: number }
+export interface TownOptions {
+  plume?: number;
+  /** Draw the ground as a surface instead of voxels (`ground.ts`; the spike: Porta Marina by default). */
+  ground?: boolean;
+}
 
 export class TownView {
   readonly root = new THREE.Group();
@@ -63,21 +68,35 @@ export class TownView {
   private look = voxelLook({ voxel: VOX });
   private ringLook = voxelLook({ voxel: RING_VOX, edges: 0.06 });
   private glow = glowLook();
+  /** The ground surface's counts, when the ground is drawn as one (QA). */
+  ground: GroundStats | null = null;
+  private groundMesh: THREE.Mesh | null = null;
   /** Where the world starts to curve away, as a fraction of the camera's distance to the focus. */
   bendFrom = 0.9;
 
   constructor(readonly scene: THREE.Scene, readonly env: Environment, readonly level: Level, o: TownOptions = {}) {
     scene.add(this.root);
     this.mats.push(this.look, this.ringLook, this.glow);
-    this.view = new WorldView(level.world, { scale: VOX, solid: this.look, glow: this.glow });
+    // the ground as a surface: the voxels left to draw are the rest of the world
+    let drawn = level.world;
+    if (o.ground) {
+      const groundLook = voxelLook({ voxel: VOX, edges: 0 });
+      this.mats.push(groundLook);
+      const g = buildGround(level, VOX, groundLook);
+      drawn = g.draw;
+      this.ground = g.stats;
+      this.groundMesh = g.mesh;
+      this.root.add(g.mesh);
+    }
+    this.view = new WorldView(drawn, { scale: VOX, solid: this.look, glow: this.glow });
     this.root.add(this.view.group);
     // the city around: built once per district (a second or so, behind the loading screen)
     this.ring = new WorldView(ringWorld(level.width * VOX, level.depth * VOX, level.ring, exitStreets(level, VOX)), { scale: RING_VOX, solid: this.ringLook });
     this.ring.group.traverse((c) => { c.receiveShadow = true; });
     this.root.add(this.ring.group);
     for (const oc of level.occluders) {
+      // opaque while fully shown (so the hero's silhouette shows through it), transparent only while it fades
       const mat = voxelLook({ voxel: VOX });
-      mat.transparent = true;
       this.mats.push(mat);
       const view = new WorldView(oc.world, { scale: VOX, solid: mat, glow: this.glow });
       this.root.add(view.group);
@@ -207,12 +226,16 @@ export class TownView {
       const under = heroVox.x >= x0 && heroVox.x <= x1 && heroVox.z >= z0 && heroVox.z <= z1;
       o.shown += ((under ? 0 : 1) - o.shown) * Math.min(1, dt * 6);
       o.mat.opacity = 0.12 + 0.88 * o.shown;
+      const fading = o.shown < 0.99;
+      if (o.mat.transparent !== fading) { o.mat.transparent = fading; o.mat.needsUpdate = true; }
       o.mat.depthWrite = o.shown > 0.95;
       o.view.group.visible = o.shown > 0.02 || !under;
     }
   }
 
   dispose(): void {
+    this.groundMesh?.geometry.dispose();
+    (this.groundMesh?.material as THREE.MeshLambertMaterial | undefined)?.map?.dispose();
     this.view.dispose();
     this.ring.dispose();
     for (const o of this.occluders) o.view.dispose();

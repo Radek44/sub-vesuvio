@@ -6,16 +6,11 @@
 import { useMemo } from 'react';
 import { Joystick, useStore } from 'ymir/ui';
 import { OBJECTIVES } from '../content/prologue';
-import { PANEL_LATIN } from '../content/ui';
-import { dismissToast, input, openPanel, queue, store } from '../game';
+import { PANEL_LATIN, VERB_LATIN } from '../content/ui';
+import { dismissToast, input, openPanel, queue, setGlosses, store } from '../game';
 import { DISTRICTS } from '../level';
 import { itemIcons } from './portraits';
 import { Purse } from './Purse';
-
-const VERBS = {
-  en: { speak: 'Speak', read: 'Read', look: 'Look', drink: 'Drink', enter: 'Enter', command: 'Command Ferox', knock: 'Knock', shop: 'Shop', take: 'Pick up', go: 'Go' },
-  fr: { speak: 'Parler', read: 'Lire', look: 'Regarder', drink: 'Boire', enter: 'Entrer', command: 'Commander Ferox', knock: 'Frapper', shop: 'Acheter', take: 'Ramasser', go: 'Aller' },
-} as const;
 
 /** Vesuvius as a little emblem, its plume as tall as this chapter's (0–1). */
 function Plume({ size }: { size: number }) {
@@ -39,6 +34,8 @@ export function Hud() {
   const prompt = useStore(store, (v) => v.prompt);
   const lang = useStore(store, (v) => v.save.lang);
   const touch = useStore(store, (v) => v.touch);
+  const glosses = useStore(store, (v) => v.save.glosses);
+  const hover = useStore(store, (v) => v.hover);
   return (
     <>
       <div className={`objective${talking ? ' dim' : ''}`} data-ui="objective">
@@ -58,20 +55,42 @@ export function Hud() {
               {p === 'journal' && tasks > 0 && <i className="badge">{tasks}</i>}
             </button>
           ))}
+          <button type="button" className={`hud-btn gloss${glosses ? ' on' : ''}`} data-ui="glosses" aria-pressed={glosses} onClick={() => setGlosses(!glosses)}
+            title={lang === 'fr' ? 'Le sens sous le latin, en ville' : 'Meanings under the Latin in town'}>
+            <GlossIcon />
+            <span className="la" lang="la">{PANEL_LATIN.gloss}</span>
+            <i className="tr">{lang.toUpperCase()}</i>
+            {!touch && <kbd>T</kbd>}
+          </button>
         </div>
       </div>
       <Toasts />
       {prompt && !talking && (
         <div className="act" data-ui="prompt" style={{ transform: `translate(${prompt.x}px, ${prompt.y}px)` }}>
-          <kbd>{touch ? '●' : 'E'}</kbd>{VERBS[lang][prompt.verb as keyof (typeof VERBS)['en']] ?? prompt.verb}
+          <kbd>{touch ? '●' : 'E'}</kbd><span lang="la">{VERB_LATIN[prompt.verb]?.la ?? prompt.verb}</span>
+          {glosses && VERB_LATIN[prompt.verb] && <small>{VERB_LATIN[prompt.verb]![lang]}</small>}
+        </div>
+      )}
+      {hover && !talking && VERB_LATIN[hover.verb] && (
+        <div className="hover-act" data-ui="hover" style={{ transform: `translate(${hover.x}px, ${hover.y}px)` }}>
+          <span lang="la">{VERB_LATIN[hover.verb]!.la}</span>
+          {glosses && <small>{VERB_LATIN[hover.verb]![lang]}</small>}
         </div>
       )}
       {!talking && (
-        <Joystick onMove={(x, y) => input.touchMove(x, y)}>{null}</Joystick>
+        // the stick is for touch: a mouse clicks, holds to walk and hovers instead (game.ts `bindPointer`)
+        <div className="joywrap" onPointerDownCapture={(e) => { if (e.pointerType === 'mouse') e.stopPropagation(); }}>
+          <Joystick onMove={(x, y) => input.touchMove(x, y)}>{null}</Joystick>
+        </div>
       )}
       {touch && !talking && <button type="button" className="act-btn" onClick={() => queue({ act: true })} aria-label="Act">●</button>}
     </>
   );
+}
+
+/** A Latin word and its meaning under it. */
+function GlossIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="9" rx="2" fill="#e9dbbd" stroke="#3a2414" /><path d="M7 8.5 H17" stroke="#a3322a" strokeWidth="2" /><path d="M7 17 H17 M9 20 H15" stroke="#6a5440" strokeWidth="1.4" /></svg>;
 }
 
 function PanelIcon({ panel }: { panel: 'bag' | 'journal' | 'map' }) {

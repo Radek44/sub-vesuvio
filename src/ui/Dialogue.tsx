@@ -21,6 +21,7 @@ const UI = { en: { next: 'Next', tap: 'Tap a word in red to see what it means', 
 export function Dialogue() {
   const sim = useStore(store, (v) => v.sim);
   const lang = useStore(store, (v) => v.save.lang);
+  const glosses = useStore(store, (v) => v.save.glosses);
   const talk = sim.talk;
   // everyone in this district gets a face, drawn once when the district is first shown
   const faces = useMemo(() => {
@@ -41,13 +42,13 @@ export function Dialogue() {
   const who = speakerOf(written ?? 'you', talk.with, sim.district);
   const notes = (beat.kind === 'line' || beat.kind === 'prompt' ? beat.notes : undefined) as { la?: boolean; gloss?: Gloss } | undefined;
   const face = faces[who];
-  const name = nameOf(who, lang);
+  const name = nameOf(who, lang, glosses);
   const t = UI[lang];
   return (
     <div className={`dialogue${who === 'you' ? ' self' : ''}`} data-ui="dialogue" onClick={() => beat.kind === 'line' && queue({ act: true })}>
       {face && <img className="face" src={face} alt="" />}
       <div className="panel">
-        {name.name && <div className="who">{name.la ? <span className="la">{name.name}</span> : name.name}{name.role && <small>{name.role}</small>}</div>}
+        {name.name && <div className="who">{name.la ? <span className="la" lang="la">{name.name}</span> : name.name}{name.role && <small className="role" lang="la">{name.role}</small>}{name.gloss && <small className="meaning">{name.gloss}</small>}</div>}
         {beat.kind === 'line' && (
           <p className="line"><Text text={beat.text} la={notes?.la} gloss={notes?.gloss} lang={lang} /></p>
         )}

@@ -31,7 +31,8 @@ export interface Npc { id: string; who: string; x: number; z: number; facing: nu
 export interface Walker { id: string; who: string; path: [number, number][]; speed: number; phase: number }
 export interface WaterArea { x: number; z: number; w: number; d: number; level: number; floor: number; kind: 'fountain' | 'pool' | 'impluvium' }
 /** Walk into the box and you go on to `to`, arriving at its spawn `arrive`. */
-export interface Exit { id: string; to: DistrictId; arrive: string; x0: number; x1: number; z0: number; z1: number; label: Text }
+/** `label` is the waymarker over the street: Latin first («Ad Forum»), its meaning when translations are on. */
+export interface Exit { id: string; to: DistrictId; arrive: string; x0: number; x1: number; z0: number; z1: number; label: Named }
 export interface Spawn { x: number; y: number; z: number; facing: number }
 /** A shop: its painted sign, its keeper (an npc id), what it sells (item ids and prices in asses), and the counter to act on. */
 export interface Shop { id: string; name: Named; sign: string; keeper: string; stock: { item: string; price: number }[]; x: number; z: number }

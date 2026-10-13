@@ -28,16 +28,19 @@ export interface View {
   touch: boolean;
   /** What "act" would do now (the prompt above the hero), and where on screen. */
   prompt: { verb: string; x: number; y: number } | null;
+  /** What a click would do on what the mouse is over, and where the pointer is (canvas pixels). */
+  hover: { verb: string; x: number; y: number } | null;
   /** 0–1 while the town meshes around the hero. */
   loading: number;
   panel: Panel;
   toasts: Toast[];
 }
 
-export const store = createStore<View>({ screen: 'title', sim: create(''), save: SAVE.load(null).state, touch: false, prompt: null, loading: 0, panel: null, toasts: [] });
+export const store = createStore<View>({ screen: 'title', sim: create(''), save: SAVE.load(null).state, touch: false, prompt: null, hover: null, loading: 0, panel: null, toasts: [] });
 export const input = createInput({
   act: ['KeyE', 'Space', 'Enter', 'pad:A'], run: ['ShiftLeft', 'ShiftRight', 'pad:B'],
   bag: ['KeyI', 'KeyB', 'pad:Y'], journal: ['KeyJ', 'pad:X'], map: ['KeyM', 'pad:Back'], back: ['Escape', 'pad:Start'],
+  zoomIn: ['Equal', 'NumpadAdd'], zoomOut: ['Minus', 'NumpadSubtract'], gloss: ['KeyT'],
 });
 
 let world: World | null = null;
@@ -65,13 +68,144 @@ export function start(host: HTMLElement, save: Save): () => void {
     },
   } });
   const unbind = bindInput(input);
-  world = new World(host);
+  // QA: `?quality=high|balanced|low` to compare, `?ladder=0` to never step down, `?fps` for a frame meter
+  const q = qaParam('quality');
+  world = new World(host, {
+    quality: q === 'high' || q === 'balanced' || q === 'low' ? q : undefined,
+    ladder: qaParam('ladder') === '0' ? false : undefined,
+    fps: qaParam('fps') !== null,
+    // `?ground=voxel` draws every district's ground in voxels, `?ground=surface` every district's as a surface
+    surfaceGround: qaParam('ground') === 'voxel' ? [] : qaParam('ground') === 'surface' ? ['portaMarina', 'forum', 'abbondanza'] : undefined,
+  });
   world.setLang(save.lang);
+  world.setGlosses(save.glosses);
   world.setLevel(district('portaMarina'));
   analytics.step('boot', 'load_finished');
   analytics.step('boot', 'title_shown');
   world.stage.start((dt, t) => frame(dt, t));
-  return () => { unbind(); world?.dispose(); world = null; };
+  const unzoom = bindZoom(), untap = bindPointer();
+  return () => { unbind(); unzoom(); untap(); world?.dispose(); world = null; };
+}
+
+/** Is this event over the town itself (the canvas, or the stick's zone that covers it), not a panel? */
+const overTown = (e: Event) => !!(e.target as Element | null)?.closest?.('canvas, [data-joy]');
+
+/**
+ * Zoom the camera: the mouse wheel and a trackpad pinch (Chrome and Firefox send it as a wheel with Ctrl,
+ * Safari as gesture events) over the town, and a two-finger pinch on a touch screen. The stick's zone covers
+ * the town, so events are watched on the document; over a panel the wheel scrolls the panel instead.
+ * The keys are input actions.
+ */
+function bindZoom(): () => void {
+  const wheel = (e: WheelEvent) => {
+    if (!overTown(e)) return;
+    e.preventDefault();
+    const px = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+    world?.zoomBy(Math.max(-0.15, Math.min(0.15, px / (e.ctrlKey ? 120 : 600))));
+  };
+  let scale = 1;
+  const gStart = (e: Event) => { if (overTown(e)) { e.preventDefault(); scale = 1; } };
+  const gChange = (e: Event) => { if (!overTown(e)) return; e.preventDefault(); const k = (e as Event & { scale: number }).scale; world?.zoomBy((scale - k) * 0.8); scale = k; };
+  const touches = new Map<number, { x: number; y: number }>();
+  let apart = 0;
+  const spread = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  const down = (e: PointerEvent) => { if (e.pointerType !== 'touch') return; touches.set(e.pointerId, { x: e.clientX, y: e.clientY }); apart = touches.size === 2 ? spread() : 0; };
+  const move = (e: PointerEvent) => {
+    if (!touches.has(e.pointerId)) return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size !== 2) return;
+    const d = spread();
+    if (apart) world?.zoomBy((apart - d) / 500);
+    apart = d;
+  };
+  const up = (e: PointerEvent) => { touches.delete(e.pointerId); apart = 0; };
+  document.addEventListener('wheel', wheel, { passive: false });
+  document.addEventListener('gesturestart', gStart);
+  document.addEventListener('gesturechange', gChange);
+  document.addEventListener('pointerdown', down);
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+  document.addEventListener('pointercancel', up);
+  return () => {
+    document.removeEventListener('wheel', wheel);
+    document.removeEventListener('gesturestart', gStart);
+    document.removeEventListener('gesturechange', gChange);
+    document.removeEventListener('pointerdown', down);
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    document.removeEventListener('pointercancel', up);
+  };
+}
+
+/** The mouse over the town (canvas pixels), and a held button walking the hero toward it. */
+let mouse: { x: number; y: number } | null = null;
+let hold: { id: number; x0: number; y0: number; t: number; walking: boolean } | null = null;
+/** A press held this long, or dragged this far, walks toward the pointer instead of clicking. */
+const HOLD_MS = 300, DRAG_PX = 10;
+
+/**
+ * The pointer on the town. A click or a tap walks the hero there, or up to whoever or whatever was clicked, to
+ * act on it. With a mouse, holding the button walks toward the pointer for as long as it's held (and the
+ * mouse's position drives the hover: `updateHover`). On a touch screen a drag is the stick (ymir/ui `Joystick`,
+ * which the HUD keeps for touch). Listened for in the capture phase, ahead of React's handlers.
+ */
+function bindPointer(): () => void {
+  let down: { id: number; x: number; y: number; t: number } | null = null;
+  const local = (e: PointerEvent) => { const r = world!.stage.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const press = (e: PointerEvent) => {
+    down = e.isPrimary && e.button === 0 && overTown(e) ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null;
+    hold = down && e.pointerType === 'mouse' ? { id: e.pointerId, x0: e.clientX, y0: e.clientY, t: down.t, walking: false } : null;
+    if (hold && world) mouse = local(e);
+  };
+  const move = (e: PointerEvent) => {
+    if (e.pointerType !== 'mouse' || !world) return;
+    // while held, keep following the pointer even over a label or a button; otherwise only over the town
+    mouse = hold || overTown(e) ? local(e) : null;
+    if (hold && !hold.walking && Math.hypot(e.clientX - hold.x0, e.clientY - hold.y0) > DRAG_PX) hold.walking = true;
+  };
+  const release = (e: PointerEvent) => {
+    const d = down, h = hold;
+    down = hold = null;
+    if (h?.walking || !d || d.id !== e.pointerId || !world) return; // a held walk ends here; it was no click
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > DRAG_PX || performance.now() - d.t > 450) return;
+    const v = store.get();
+    if (v.screen !== 'play' || v.panel || v.sim.talk || v.sim.shop) return;
+    const p = local(e);
+    const g = world.pick(p.x, p.y, v.sim);
+    if (g) { queue({ goto: { x: g.x, z: g.z, act: g.act } }); analytics.track('walk_to', { act: g.act ? 1 : 0 }); }
+  };
+  const cancel = () => { down = hold = null; };
+  const leave = (e: PointerEvent) => { if (e.pointerType === 'mouse' && !hold) mouse = null; };
+  document.addEventListener('pointerdown', press, true);
+  document.addEventListener('pointermove', move, true);
+  document.addEventListener('pointerup', release, true);
+  document.addEventListener('pointercancel', cancel, true);
+  document.documentElement.addEventListener('pointerleave', leave);
+  addEventListener('blur', cancel);
+  return () => {
+    document.removeEventListener('pointerdown', press, true);
+    document.removeEventListener('pointermove', move, true);
+    document.removeEventListener('pointerup', release, true);
+    document.removeEventListener('pointercancel', cancel, true);
+    document.documentElement.removeEventListener('pointerleave', leave);
+    removeEventListener('blur', cancel);
+  };
+}
+
+/**
+ * What the mouse is over: someone or something to act on gets a gold ring, a hand for a cursor, and the
+ * Latin for what a click would do beside the pointer. Nothing while talking, shopping, a panel or a held walk.
+ */
+function updateHover(view: View): void {
+  if (!world) return;
+  const quiet = !mouse || hold?.walking || view.sim.talk || view.sim.shop || view.panel;
+  const it = quiet ? null : world.pickThing(mouse!.x, mouse!.y, view.sim);
+  world.setHover(it);
+  const cursor = it ? 'act' : mouse && !quiet ? 'walk' : '';
+  if (document.body.dataset.cursor !== cursor) document.body.dataset.cursor = cursor;
+  const cur = view.hover;
+  if (!it) { if (cur) store.patch({ hover: null }); return; }
+  if (!cur || cur.verb !== it.verb || cur.x !== mouse!.x || cur.y !== mouse!.y) store.patch({ hover: { verb: it.verb, x: mouse!.x, y: mouse!.y } });
 }
 
 /** Start (`fresh`: a new journey, even under the same name) or continue: from the title screen. */
@@ -83,12 +217,46 @@ export function play(name: string, fresh = false): void {
   load(sim);
 }
 
-/** Show the hero's district and mesh around them behind the loading screen. */
+/**
+ * Show the hero's district and mesh around them behind the loading screen. The stage's own loop is paused
+ * meanwhile and the loading screen runs its own: the stage judges quality by frame rate and never steps
+ * back up, and a loading frame spends most of its time meshing, so counted frames would cost the game its
+ * post-processing, shadows and full resolution every time the hero walked into a new district.
+ */
 function load(s: State): void {
   if (!world) return;
   world.setLevel(district(s.district));
   total = Math.max(1, world.preload(s, 0));
   store.patch({ screen: 'loading', loading: 0 });
+  world.stage.pause(true);
+  let last = -1, drawn = -1;
+  const tick = (now: number) => {
+    const w = world, view = store.get();
+    if (!w || view.screen !== 'loading') return;
+    // The loading screen needs no smooth frame rate: mesh in big slices and show the town building up a
+    // few times a second (slow phones and CI's software rendering load faster).
+    const left = w.preload(view.sim, 150);
+    store.patch({ loading: 1 - left / total });
+    if (left === 0 || drawn < 0 || now - drawn > 200) {
+      const dt = last < 0 ? 0 : Math.min(0.05, (now - last) / 1000);
+      last = drawn = now;
+      w.sync(view.sim, now / 1000, dt, true);
+      w.drawNow(dt);
+    }
+    if (left > 0) { requestAnimationFrame(tick); return; }
+    store.patch({ screen: 'play', loading: 1 });
+    w.stage.pause(false);
+  };
+  requestAnimationFrame(tick);
+}
+
+/** Translations under the Latin labels in town, on or off (the title screen, the HUD, or T). */
+export function setGlosses(on: boolean): void {
+  const save = { ...store.get().save, glosses: on };
+  store.patch({ save });
+  world?.setGlosses(on);
+  analytics.track('glosses', { on: on ? 1 : 0 });
+  void saveGame(SAVE, save);
 }
 
 export function setLang(lang: 'en' | 'fr'): void {
@@ -121,31 +289,37 @@ function frame(dt: number, t: number): void {
   input.update();
   const view = store.get();
   if (!world) return;
-  if (view.screen === 'loading') {
-    // a loading screen needs no smooth frame rate: mesh in big slices, so slow machines (and software GL) load fast
-    const left = world.preload(view.sim, 150);
-    store.patch({ loading: 1 - left / total });
-    if (left === 0) store.patch({ screen: 'play', loading: 1 });
-    world.sync(view.sim, t, dt, true);
-    return;
-  }
+  if (view.screen === 'loading') return; // the loading screen runs its own loop (`load`)
   if (view.screen !== 'play') { world.sync(view.sim, t, dt); return; }
+  if (input.pressed('gloss')) setGlosses(!store.get().save.glosses);
+  if (input.down('zoomIn')) world.zoomBy(-dt * 0.8);
+  if (input.down('zoomOut')) world.zoomBy(dt * 0.8);
   // panels: their keys toggle them; Escape closes whatever is open (a panel, then a shop)
   for (const p of ['bag', 'journal', 'map'] as const) if (input.pressed(p) && !view.sim.talk) openPanel(p);
   if (input.pressed('back')) { if (store.get().panel) openPanel(null); else if (view.sim.shop) queue({ close: true }); }
+  updateHover(store.get());
   if (store.get().panel) { world.sync(view.sim, t, dt); queued = {}; acc = 0; return; }
-  const v = input.vector();
+  let v = input.vector();
+  let run = input.down('run');
+  // a held mouse button walks toward the pointer (running when it's far)
+  if (hold && !hold.walking && performance.now() - hold.t > HOLD_MS) hold.walking = true;
+  if (hold?.walking && mouse && !view.sim.talk && !view.sim.shop) {
+    const g = world.pickGround(mouse.x, mouse.y), h = view.sim.hero;
+    const dx = g ? g.x - h.x : 0, dz = g ? g.z - h.z : 0, d = Math.hypot(dx, dz);
+    if (d > 3) { v = { x: dx / d, y: dz / d }; run ||= d > 64; }
+  }
   let s = view.sim;
   const before = s;
   pendingAct ||= input.pressed('act') || !!queued.act;
-  const extra: Partial<Input> = { pick: queued.pick, answer: queued.answer, buy: queued.buy, close: queued.close };
+  const extra: Partial<Input> = { pick: queued.pick, answer: queued.answer, buy: queued.buy, close: queued.close, goto: queued.goto };
   let stepped = false;
   for (acc += dt * 1000; acc >= STEP_MS; acc -= STEP_MS) {
     // the stick is screen-relative; the camera looks north, so screen up is −z
-    s = step(s, { x: v.x, z: v.y, run: input.down('run'), act: pendingAct, ...extra });
+    s = step(s, { x: v.x, z: v.y, run, act: pendingAct, ...extra });
     pendingAct = false;
     extra.pick = extra.answer = extra.buy = undefined;
     extra.close = undefined;
+    extra.goto = undefined;
     stepped = true;
     if (s.district !== before.district) break;
   }

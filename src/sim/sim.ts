@@ -6,6 +6,8 @@
  * - The hero walks with ymir/voxel `moveBody` (steps up kerbs, never through walls). Walking into a street's
  *   exit goes on to the next district.
  * - "Act" talks to, reads, buys at or picks up the nearest thing in reach (ymir/core `nearestInteractable`).
+ * - A click or tap sends the hero walking there along a path (`route.ts`); on a person or a thing, they walk
+ *   up to it and act on it. The stick or the keys take over at once.
  * - Conversations run on ymir/dialogue `step`: the sim lends it the story flags, the inventory and the quests
  *   (`test`) and lingua's checker (`check`), and applies the effects it returns. The world pauses meanwhile.
  * - Shops: the hero opens one at its counter and buys with asses.
@@ -24,6 +26,7 @@ import { QUESTS } from '../content/quests';
 import { GATE } from '../level/portaMarina';
 import { district, type DistrictId, type Level } from '../level';
 import type { Walker } from '../level/types';
+import { routeTo, type Point } from './route';
 
 export const STEP_MS = 1000 / 60;
 const DT = STEP_MS / 1000;
@@ -35,6 +38,17 @@ const DOG_SHAPE: BodyShape = { radius: 2.5, height: 8, step: 3, gravity: 160, ma
 const REACH = 14;
 
 export type FeroxMode = 'guard' | 'sit' | 'follow';
+/** Where a click sent the hero: the points still to walk to, and what to act on on arrival. */
+export interface Route {
+  path: Point[];
+  /** An interactable's id: act on it as soon as it's in reach. */
+  act?: string;
+  /** Steps without getting nearer the next point (stuck against someone: give up). */
+  stall: number;
+  best: number;
+  /** Times the path was worked out again (after someone who walks on). */
+  replans: number;
+}
 export interface Ferox { body: Body; facing: number; mode: FeroxMode; speed: number; district: DistrictId }
 export interface Talk {
   script: string;
@@ -70,6 +84,8 @@ export interface State {
   answers: { id: string; grade: Grade }[];
   /** Conversations finished, by script id. */
   seen: string[];
+  /** Walking where the player clicked, or null. Not saved: a reload stands still. */
+  route: Route | null;
 }
 
 export interface Input {
@@ -86,6 +102,8 @@ export interface Input {
   buy?: ItemId;
   /** Close the shop. */
   close?: boolean;
+  /** Walk to this point (voxels), and act on the interactable `act` on arrival (a click or a tap). */
+  goto?: { x: number; z: number; act?: string };
 }
 export const IDLE: Input = { x: 0, z: 0 };
 
@@ -114,6 +132,7 @@ export function create(name = 'Marcus', level: Level = district('portaMarina')):
     visited: [level.id],
     answers: [],
     seen: [],
+    route: null,
   };
 }
 
@@ -295,7 +314,58 @@ function stepShop(s: State, input: Input, L: Level): State {
   return give({ ...s, coins: s.coins - line.price }, line.item as ItemId, 1);
 }
 
+/** How far (voxels) a route runs on before the hero breaks into a run, and the stick's dead zone over a route. */
+const RUN_ROUTE = 48, STICK = 0.3;
+
+/** Walking: the stick or the keys, or the route a click set (the stick or the keys cancel it at once). */
 function stepWalk(s: State, input: Input, L: Level): State {
+  let st = input.goto ? plan(s, L, input.goto) : s;
+  const steering = Math.hypot(input.x, input.z) > STICK;
+  if (!st.route || steering) return walk(st.route ? { ...st, route: null } : st, input, L);
+  const r = st.route;
+  const target = r.act ? interactables(L, st).find((t) => t.id === r.act) : undefined;
+  if (r.act && !target) return walk({ ...st, route: null }, { ...input, x: 0, z: 0 }, L); // it went away
+  // in reach of what was clicked: act on it, wherever the path had got to
+  if (target && Math.hypot(target.x - st.hero.x, target.z - st.hero.z) <= target.radius) return actOn({ ...st, route: null }, target);
+  let path = r.path;
+  while (path.length && Math.hypot(path[0]!.x - st.hero.x, path[0]!.z - st.hero.z) < 2) path = path.slice(1);
+  // the end of the path but not in reach (someone walking their loop moved on): after them, a few times
+  if (!path.length && target && r.replans < 3) {
+    const again = routeTo(L, HERO, st.hero, target, target.radius * 0.8);
+    if (again?.length) { path = again; st = { ...st, route: { ...r, path, replans: r.replans + 1, best: FAR } }; }
+  }
+  if (!path.length) return walk({ ...st, route: null }, { ...input, x: 0, z: 0 }, L);
+  const p = path[0]!, dx = p.x - st.hero.x, dz = p.z - st.hero.z, d = Math.hypot(dx, dz);
+  let left = d;
+  for (let i = 1; i < path.length; i++) left += Math.hypot(path[i]!.x - path[i - 1]!.x, path[i]!.z - path[i - 1]!.z);
+  // stuck against someone or something: give up rather than walk on the spot
+  const best = path === r.path ? st.route!.best : FAR;
+  const stall = d < best - 0.05 ? 0 : st.route!.stall + 1;
+  if (stall > 90) return walk({ ...st, route: null }, { ...input, x: 0, z: 0 }, L);
+  const next = walk({ ...st, route: { ...st.route!, path, best: Math.min(best, d), stall } }, { ...input, x: dx / d, z: dz / d, run: input.run || left > RUN_ROUTE }, L);
+  return next.talk || next.shop ? { ...next, route: null } : next;
+}
+
+const FAR = 1e9;
+
+/** Set the route for a click: a path to the point, or none when there's no way there. */
+function plan(s: State, L: Level, g: NonNullable<Input['goto']>): State {
+  // to someone or something: anywhere near enough to act on it (across a counter, at a fountain's rim)
+  const it = g.act ? interactables(L, s).find((t) => t.id === g.act) : undefined;
+  const path = routeTo(L, HERO, s.hero, it ?? g, it ? it.radius * 0.8 : 0);
+  return { ...s, route: path ? { path, act: g.act, stall: 0, best: FAR, replans: 0 } : null };
+}
+
+/** Act on one thing: open its shop, pick it up, or start its conversation, turning to face it. */
+function actOn(s: State, it: Target): State {
+  const face = Math.atan2(it.x - s.hero.x, it.z - s.hero.z);
+  if (it.shop) return { ...s, shop: it.shop, facing: face };
+  if (it.take) return give({ ...s, flags: [...s.flags, `took:${it.id}`], facing: face }, it.take, 1);
+  if (it.talk) return { ...s, talk: { script: it.talk, cursor: { node: it.talk, line: 0 }, with: it.with }, facing: face };
+  return s;
+}
+
+function walk(s: State, input: Input, L: Level): State {
   const m = Math.hypot(input.x, input.z);
   const k = m > 1 ? 1 / m : 1;
   const speed = input.run ? RUN * (count(s, 'sandals') ? SANDALS : 1) : WALK;
@@ -324,11 +394,7 @@ function stepWalk(s: State, input: Input, L: Level): State {
   }
   if (input.act) {
     const it = nearestInteractable(interactables(L, next), { x: body.x, z: body.z }, { x: Math.sin(facing), z: Math.cos(facing) });
-    if (!it) return next;
-    const face = Math.atan2(it.x - body.x, it.z - body.z);
-    if (it.shop) return { ...next, shop: it.shop, facing: face };
-    if (it.take) return give({ ...next, flags: [...next.flags, `took:${it.id}`], facing: face }, it.take, 1);
-    if (it.talk) return { ...next, talk: { script: it.talk, cursor: { node: it.talk, line: 0 }, with: it.with }, facing: face };
+    if (it) return actOn(next, it);
   }
   return next;
 }
@@ -342,7 +408,7 @@ export function travel(s: State, to: DistrictId, arrive: string): State {
   const ferox = s.ferox.mode === 'follow'
     ? { ...s.ferox, district: to, body: { ...hero, x: sp.x - Math.sin(sp.facing) * 10, z: sp.z - Math.cos(sp.facing) * 10, y: L.groundAt(sp.x - Math.sin(sp.facing) * 10, sp.z - Math.cos(sp.facing) * 10) }, speed: 0 }
     : s.ferox;
-  return { ...s, district: to, hero, facing: sp.facing, speed: 0, ferox, shop: null, visited: s.visited.includes(to) ? s.visited : [...s.visited, to] };
+  return { ...s, district: to, hero, facing: sp.facing, speed: 0, ferox, shop: null, route: null, visited: s.visited.includes(to) ? s.visited : [...s.visited, to] };
 }
 
 function stepFerox(s: State, L: Level): State {

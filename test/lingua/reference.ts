@@ -98,6 +98,9 @@ export const REF_NOUNS: Record<string, RefNoun> = {
 
   // The town's people and goods (added with the open city)
   senex: { gender: 'm', sg: ['senex', 'senis', 'senī', 'senem', 'sene', 'senex'], pl: ['senēs', 'senum', 'senibus', 'senēs', 'senibus', 'senēs'] },
+  portitor: { gender: 'm', sg: ['portitor', 'portitōris', 'portitōrī', 'portitōrem', 'portitōre', 'portitor'], pl: ['portitōrēs', 'portitōrum', 'portitōribus', 'portitōrēs', 'portitōribus', 'portitōrēs'] },
+  vīnārius: { gender: 'm', sg: ['vīnārius', 'vīnāriī/vīnārī', 'vīnāriō', 'vīnārium', 'vīnāriō', 'vīnārie'], pl: ['vīnāriī', 'vīnāriōrum', 'vīnāriīs', 'vīnāriōs', 'vīnāriīs', 'vīnāriī'] },
+  coqua: { gender: 'f', sg: ['coqua', 'coquae', 'coquae', 'coquam', 'coquā', 'coqua'], pl: ['coquae', 'coquārum', 'coquīs', 'coquās', 'coquīs', 'coquae'] },
   pistor: { gender: 'm', sg: ['pistor', 'pistōris', 'pistōrī', 'pistōrem', 'pistōre', 'pistor'], pl: ['pistōrēs', 'pistōrum', 'pistōribus', 'pistōrēs', 'pistōribus', 'pistōrēs'] },
   caupō: { gender: 'm', sg: ['caupō', 'caupōnis', 'caupōnī', 'caupōnem', 'caupōne', 'caupō'], pl: ['caupōnēs', 'caupōnum', 'caupōnibus', 'caupōnēs', 'caupōnibus', 'caupōnēs'] },
   pānis: { gender: 'm', sg: ['pānis', 'pānis', 'pānī', 'pānem', 'pāne', 'pānis'], pl: ['pānēs', 'pānum/pānium', 'pānibus', 'pānēs', 'pānibus', 'pānēs'] },
@@ -141,6 +144,10 @@ export const REF_NOUNS: Record<string, RefNoun> = {
     gender: 'n',
     sg: ['aedificium', 'aedificiī/aedificī', 'aedificiō', 'aedificium', 'aedificiō', 'aedificium'],
     pl: ['aedificia', 'aedificiōrum', 'aedificiīs', 'aedificia', 'aedificiīs', 'aedificia'],
+  },
+  thermae: {
+    gender: 'f',
+    pl: ['thermae', 'thermārum', 'thermīs', 'thermās', 'thermīs', 'thermae'],
   },
   Pompeiī: {
     gender: 'm',
@@ -227,6 +234,20 @@ export interface RefAdj {
 }
 
 export const REF_ADJECTIVES: Record<string, RefAdj> = {
+  marīnus: {
+    m: {
+      sg: ['marīnus', 'marīnī', 'marīnō', 'marīnum', 'marīnō', 'marīne'],
+      pl: ['marīnī', 'marīnōrum', 'marīnīs', 'marīnōs', 'marīnīs', 'marīnī'],
+    },
+    f: {
+      sg: ['marīna', 'marīnae', 'marīnae', 'marīnam', 'marīnā', 'marīna'],
+      pl: ['marīnae', 'marīnārum', 'marīnīs', 'marīnās', 'marīnīs', 'marīnae'],
+    },
+    n: {
+      sg: ['marīnum', 'marīnī', 'marīnō', 'marīnum', 'marīnō', 'marīnum'],
+      pl: ['marīna', 'marīnōrum', 'marīnīs', 'marīna', 'marīnīs', 'marīna'],
+    },
+  },
   magnus: {
     m: {
       sg: ['magnus', 'magnī', 'magnō', 'magnum', 'magnō', 'magne'],
@@ -343,6 +364,8 @@ export const REF_VERBS: Record<string, RefVerb> = {
   audiō: { present: ['audiō', 'audīs', 'audit', 'audīmus', 'audītis', 'audiunt'], imperative: ['audī', 'audīte'], infinitive: 'audīre' },
   veniō: { present: ['veniō', 'venīs', 'venit', 'venīmus', 'venītis', 'veniunt'], imperative: ['venī', 'venīte'], infinitive: 'venīre' },
   // ── Via dell'Abbondanza: reference rows for its words go here ──
+  bibō: { present: ['bibō', 'bibis', 'bibit', 'bibimus', 'bibitis', 'bibunt'], imperative: ['bibe', 'bibite'], infinitive: 'bibere' },
+  pulsō: { present: ['pulsō', 'pulsās', 'pulsat', 'pulsāmus', 'pulsātis', 'pulsant'], imperative: ['pulsā', 'pulsāte'], infinitive: 'pulsāre' },
   rogō: { present: ['rogō', 'rogās', 'rogat', 'rogāmus', 'rogātis', 'rogant'], imperative: ['rogā', 'rogāte'], infinitive: 'rogāre' },
   emō: { present: ['emō', 'emis', 'emit', 'emimus', 'emitis', 'emunt'], imperative: ['eme', 'emite'], infinitive: 'emere' },
   vēndō: { present: ['vēndō', 'vēndis', 'vēndit', 'vēndimus', 'vēnditis', 'vēndunt'], imperative: ['vēnde', 'vēndite'], infinitive: 'vēndere' },

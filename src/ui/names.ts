@@ -1,26 +1,32 @@
 /**
- * What to call someone on screen: the cast by name (and trade, where it helps), townsfolk by the Latin for
- * what they are with its meaning beside it, the way their name tags show it in the street.
+ * What to call someone on screen: the cast by name and, where it helps, their trade in Latin; townsfolk by the
+ * Latin for what they are, the way their name tags show it in the street. Latin first: the meaning comes
+ * too only with translations on (save `glosses`).
  */
 import { TAGS, type TagKind } from '../art/people';
+import { ROLES } from '../content/ui';
 import { district } from '../level';
 import type { DistrictId } from '../level/types';
 
-const ROLES: Record<string, { en: string; fr: string }> = {
-  Sextus: { en: 'the toll collector', fr: 'le péager' },
-  Faustus: { en: 'wine seller', fr: 'marchand de vin' },
-  Modestus: { en: 'baker', fr: 'boulanger' },
-  Celsus: { en: 'mason', fr: 'tailleur de pierre' },
-  Vibia: { en: 'cook', fr: 'cuisinière' },
-};
+export interface Name {
+  name: string;
+  /** The name itself is Latin (a townsperson's tag). */
+  la?: boolean;
+  /** The trade, in Latin. */
+  role?: string;
+  /** What the Latin means, in the hint language (only with translations on). */
+  gloss?: string;
+}
 
-export interface Name { name: string; la?: boolean; role?: string }
-
-export function nameOf(who: string, lang: 'en' | 'fr'): Name {
+export function nameOf(who: string, lang: 'en' | 'fr', glosses = false): Name {
   if (who === 'you' || who === 'hero') return { name: '' };
   const kind = who.split(':')[0] as TagKind;
-  if (who.includes(':') && TAGS[kind]) { const t = TAGS[kind]; return { name: t.la.charAt(0).toUpperCase() + t.la.slice(1), la: true, role: t[lang] }; }
-  return { name: who, role: ROLES[who]?.[lang] };
+  if (who.includes(':') && TAGS[kind]) {
+    const t = TAGS[kind];
+    return { name: t.la.charAt(0).toUpperCase() + t.la.slice(1), la: true, gloss: glosses ? t[lang] : undefined };
+  }
+  const r = ROLES[who];
+  return { name: who, role: r?.la, gloss: r && glosses ? r[lang] : undefined };
 }
 
 /**
