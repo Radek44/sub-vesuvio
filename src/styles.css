@@ -276,3 +276,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1e1714; fon
   .stock li .price { display: none; }
   .stock .icon { width: 44px; height: 44px; }
 }
+
+/* `?fps`: the frame meter (QA) */
+.fps { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 30; padding: 3px 8px; border-radius: 3px; background: rgba(0, 0, 0, 0.6); color: #fff; font: 12px ui-monospace, monospace; pointer-events: none; }

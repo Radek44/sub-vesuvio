@@ -65,7 +65,13 @@ export function start(host: HTMLElement, save: Save): () => void {
     },
   } });
   const unbind = bindInput(input);
-  world = new World(host);
+  // QA: `?quality=high|balanced|low` to compare, `?ladder=0` to never step down, `?fps` for a frame meter
+  const q = qaParam('quality');
+  world = new World(host, {
+    quality: q === 'high' || q === 'balanced' || q === 'low' ? q : undefined,
+    ladder: qaParam('ladder') === '0' ? false : undefined,
+    fps: qaParam('fps') !== null,
+  });
   world.setLang(save.lang);
   world.setLevel(district('portaMarina'));
   analytics.step('boot', 'load_finished');
@@ -83,12 +89,37 @@ export function play(name: string, fresh = false): void {
   load(sim);
 }
 
-/** Show the hero's district and mesh around them behind the loading screen. */
+/**
+ * Show the hero's district and mesh around them behind the loading screen. The stage's own loop is paused
+ * meanwhile and the loading screen runs its own: the stage judges quality by frame rate and never steps
+ * back up, and a loading frame spends most of its time meshing, so counted frames would cost the game its
+ * post-processing, shadows and full resolution every time the hero walked into a new district.
+ */
 function load(s: State): void {
   if (!world) return;
   world.setLevel(district(s.district));
   total = Math.max(1, world.preload(s, 0));
   store.patch({ screen: 'loading', loading: 0 });
+  world.stage.pause(true);
+  let last = -1, drawn = -1;
+  const tick = (now: number) => {
+    const w = world, view = store.get();
+    if (!w || view.screen !== 'loading') return;
+    // The loading screen needs no smooth frame rate: mesh in big slices and show the town building up a
+    // few times a second (slow phones and CI's software rendering load faster).
+    const left = w.preload(view.sim, 150);
+    store.patch({ loading: 1 - left / total });
+    if (left === 0 || drawn < 0 || now - drawn > 200) {
+      const dt = last < 0 ? 0 : Math.min(0.05, (now - last) / 1000);
+      last = drawn = now;
+      w.sync(view.sim, now / 1000, dt, true);
+      w.drawNow(dt);
+    }
+    if (left > 0) { requestAnimationFrame(tick); return; }
+    store.patch({ screen: 'play', loading: 1 });
+    w.stage.pause(false);
+  };
+  requestAnimationFrame(tick);
 }
 
 export function setLang(lang: 'en' | 'fr'): void {
@@ -121,14 +152,7 @@ function frame(dt: number, t: number): void {
   input.update();
   const view = store.get();
   if (!world) return;
-  if (view.screen === 'loading') {
-    // a loading screen needs no smooth frame rate: mesh in big slices, so slow machines (and software GL) load fast
-    const left = world.preload(view.sim, 150);
-    store.patch({ loading: 1 - left / total });
-    if (left === 0) store.patch({ screen: 'play', loading: 1 });
-    world.sync(view.sim, t, dt, true);
-    return;
-  }
+  if (view.screen === 'loading') return; // the loading screen runs its own loop (`load`)
   if (view.screen !== 'play') { world.sync(view.sim, t, dt); return; }
   // panels: their keys toggle them; Escape closes whatever is open (a panel, then a shop)
   for (const p of ['bag', 'journal', 'map'] as const) if (input.pressed(p) && !view.sim.talk) openPanel(p);

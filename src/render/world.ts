@@ -6,7 +6,7 @@
  * classic three-quarter view looking north, so Vesuvius rises behind the town on the curved horizon.
  */
 import * as THREE from 'three';
-import { Anchors, Environment, FollowCamera, LOOK, Stage, applyPose, breathe, createPost, talk, walk, type Rig } from 'ymir/three';
+import { Anchors, Environment, FollowCamera, LOOK, Stage, applyPose, breathe, createPost, talk, walk, type Post, type Rig } from 'ymir/three';
 import { CAST, tagFor } from '../art/people';
 import { VOX } from '../art/palette';
 import type { Level } from '../level/types';
@@ -15,7 +15,14 @@ import { personRig, poseDog, Townsfolk } from './actors';
 import { BAY } from './moods';
 import { TownView } from './town';
 
-export interface WorldOptions { quality?: 'high' | 'balanced' | 'low'; plume?: number }
+export interface WorldOptions {
+  quality?: 'high' | 'balanced' | 'low';
+  /** false: never step quality down (QA screenshots on software rendering). */
+  ladder?: false;
+  /** Show frames per second and the quality steps taken (`?fps`). */
+  fps?: boolean;
+  plume?: number;
+}
 
 /** How near (voxels) a name tag starts to show, and is fully shown. */
 const TAG_FAR = 96, TAG_NEAR = 64;
@@ -23,15 +30,23 @@ const SIGN_FAR = 150, SIGN_NEAR = 110;
 
 /**
  * A silhouette where something stands behind a roof or a wall: drawn only where the depth test fails
- * (GreaterDepth), so the hero never disappears under the eaves of a portico.
+ * (GreaterDepth), so the hero never disappears under the eaves of a portico. Both passes are opaque, so they
+ * sort by render order: the town (0), then the silhouette (1), then the actor itself (2). Only the town is
+ * in the depth buffer when the silhouette draws, so the actor's own arms and legs never wash over the actor
+ * (drawn after it, the silhouette lit up every part of the hero behind another part, in the open street).
+ * Custom blending keeps it see-through without moving it to the transparent pass.
  */
-const XRAY = new THREE.MeshBasicMaterial({ color: 0xf3e8d2, transparent: true, opacity: 0.45, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false });
+const XRAY = new THREE.MeshBasicMaterial({
+  color: 0xf3e8d2, opacity: 0.6, depthWrite: false, depthFunc: THREE.GreaterDepth, fog: false,
+  blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+});
 function xray(root: THREE.Object3D): void {
   const meshes: THREE.Mesh[] = [];
   root.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
   for (const m of meshes) {
+    m.renderOrder = 2;
     const ghost = new THREE.Mesh(m.geometry, XRAY);
-    ghost.renderOrder = 10;
+    ghost.renderOrder = 1;
     ghost.castShadow = false;
     m.add(ghost);
   }
@@ -64,13 +79,19 @@ export class World {
   private walkT = 0;
   private layer: HTMLElement;
   private labels: Label[] = [];
+  /** The post chain, kept so the loading screen can draw through it while the stage's loop is paused. */
+  private post: Post | null = null;
+  private meter: HTMLElement | null = null;
+  private meterT = 0;
 
   constructor(host: HTMLElement, private o: WorldOptions = {}) {
     const phone = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+    const post = createPost({ tiltShift: { amount: 1.5, focus: 0.42, band: 0.28 }, grade: { saturation: 1.1, warmth: 0.18, vignette: 0.3 } });
     this.stage = new Stage(host, {
       camera: this.camera, quality: o.quality ?? (phone ? 'balanced' : 'high'), toneMapping: THREE.ACESFilmicToneMapping,
-      post: createPost({ tiltShift: { amount: 2, focus: 0.42, band: 0.2 }, grade: { saturation: 1.1, warmth: 0.18, vignette: 0.3 } }),
+      post: (r, s, c) => (this.post = post(r, s, c)), ladder: o.ladder,
     });
+    if (o.fps) { this.meter = el('fps', ''); host.appendChild(this.meter); }
     this.env = new Environment(this.stage.scene, { mood: BAY.arrival, renderer: this.stage.renderer, shadowExtent: 18, horizon: 0.55 });
     LOOK.uBend.value = 0.018; // a gentle roll: the Forum's temples stay in view across the piazza
     this.hero = personRig('hero', CAST.hero);
@@ -130,6 +151,16 @@ export class World {
   /** Mesh what's near the hero now (a loading screen calls this until it returns 0). */
   preload(s: State, budgetMs = 30): number { return this.town ? this.town.sync({ x: s.hero.x, y: s.hero.y, z: s.hero.z }, budgetMs, false) : 1; }
 
+  /**
+   * Draw a frame outside the stage's loop (the loading screen, while the loop is paused): through the post
+   * chain while the stage still has it, so the look doesn't change, and without counting toward the
+   * stage's frame rate, so slow loading frames never cost the game its quality.
+   */
+  drawNow(dt: number): void {
+    if (this.post && !this.stage.stats().steps.includes('post')) this.post.render(dt);
+    else this.stage.renderer.render(this.stage.scene, this.camera);
+  }
+
   /** Make the scene match the state. */
   sync(s: State, t: number, dt: number, loading = false): void {
     const town = this.town, folk = this.folk;
@@ -176,9 +207,15 @@ export class World {
       const p = l.at();
       const dist = Math.hypot(p.x / VOX - h.x, p.z / VOX - h.z);
       const k = busy || (l.dog && f.district !== s.district) ? 0 : Math.max(0, Math.min(1, (l.far - dist) / (l.far - l.near)));
-      l.el.style.opacity = k.toFixed(2);
+      const op = k.toFixed(2);
+      if (l.el.style.opacity !== op) l.el.style.opacity = op; // a style write per label per frame adds up
     }
     this.anchors.update();
+    if (this.meter && (this.meterT += dt) > 0.5) {
+      this.meterT = 0;
+      const st = this.stage.stats(), r = this.stage.renderer;
+      this.meter.textContent = `${st.fps} fps · ${r.getPixelRatio()}× · ${r.info.render.calls} draws${st.steps.length ? ` · dropped: ${st.steps.join(', ')}` : ''}`;
+    }
   }
 
   /** The hero's head in screen pixels (for the action prompt), or null when it's off screen. */

@@ -76,8 +76,8 @@ export class TownView {
     this.ring.group.traverse((c) => { c.receiveShadow = true; });
     this.root.add(this.ring.group);
     for (const oc of level.occluders) {
+      // opaque while fully shown (so the hero's silhouette shows through it), transparent only while it fades
       const mat = voxelLook({ voxel: VOX });
-      mat.transparent = true;
       this.mats.push(mat);
       const view = new WorldView(oc.world, { scale: VOX, solid: mat, glow: this.glow });
       this.root.add(view.group);
@@ -207,6 +207,8 @@ export class TownView {
       const under = heroVox.x >= x0 && heroVox.x <= x1 && heroVox.z >= z0 && heroVox.z <= z1;
       o.shown += ((under ? 0 : 1) - o.shown) * Math.min(1, dt * 6);
       o.mat.opacity = 0.12 + 0.88 * o.shown;
+      const fading = o.shown < 0.99;
+      if (o.mat.transparent !== fading) { o.mat.transparent = fading; o.mat.needsUpdate = true; }
       o.mat.depthWrite = o.shown > 0.95;
       o.view.group.visible = o.shown > 0.02 || !under;
     }
