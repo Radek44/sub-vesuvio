@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { danglingGotos, fill, scriptTexts, unreachable } from 'ymir/dialogue';
 import { SCRIPT as PROLOGUE, TALK_TO } from '../src/content';
-import { PANEL_LATIN } from '../src/content/ui';
+import { PANEL_LATIN, ROLES, VERB_LATIN } from '../src/content/ui';
 import { QUESTS } from '../src/content/quests';
 import { ITEMS } from '../src/content/items';
 import { TAGS } from '../src/art/people';
@@ -98,6 +98,20 @@ describe('Latin on things', () => {
         for (const s of sh.stock) expect({ shop: sh.id, item: s.item, known: s.item in ITEMS, price: s.price > 0 }).toEqual({ shop: sh.id, item: s.item, known: true, price: true });
       }
       for (const e of L.exits) expect({ exit: `${id}/${e.id}`, issues: lintLatin(e.label.la, { whole: true }) }).toEqual({ exit: `${id}/${e.id}`, issues: [] });
+    }
+  });
+
+  it('the action prompts are orders to yourself (imperative, singular) and the cast’s trades are nominatives', () => {
+    for (const [verb, v] of Object.entries(VERB_LATIN)) {
+      expect({ verb, issues: lintLatin(v.la, { whole: true }) }).toEqual({ verb, issues: [] });
+      const [first, ...rest] = v.la.split(' ');
+      const imp = analyse(first!).some((r) => r.tag.mood === 'imp' && r.tag.number === 'sg');
+      expect({ verb, first, imp }).toEqual({ verb, first, imp: true });
+      for (const w of rest) expect({ verb, w, acc: analyse(w).some((r) => r.tag.case === 'acc') }).toEqual({ verb, w, acc: true });
+    }
+    for (const [who, r] of Object.entries(ROLES)) {
+      expect({ who, issues: lintLatin(r.la, { whole: true }) }).toEqual({ who, issues: [] });
+      expect({ who, nom: analyse(r.la).some((x) => x.tag.case === 'nom' && x.tag.number === 'sg') }).toEqual({ who, nom: true });
     }
   });
 

@@ -90,6 +90,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1e1714; fon
   background: rgba(30, 23, 20, 0.86); color: #fff3dd; border-radius: 999px; font: 600 14px var(--display); letter-spacing: 0.06em;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); animation: pop 0.18s ease-out;
 }
+.act small { font: italic 400 12px var(--text); letter-spacing: 0; color: #e9dbbd; }
 .act kbd { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ochre); color: var(--black); font: 800 12px var(--display); }
 .act-btn { position: absolute; right: 22px; bottom: max(28px, env(safe-area-inset-bottom)); width: 74px; height: 74px; border-radius: 50%; border: 3px solid rgba(255, 243, 221, 0.8); background: rgba(163, 50, 42, 0.85); color: #fff3dd; font-size: 26px; box-shadow: var(--shadow); }
 @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(0.92); } }
@@ -109,6 +110,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1e1714; fon
 .dialogue .panel { background: var(--plaster); border: 3px solid var(--red); box-shadow: inset 0 0 0 3px var(--plaster), inset 0 0 0 4px var(--black), var(--shadow); border-radius: 4px; }
 .dialogue.self .panel { background: #efe4cc; border-color: #6a5440; }
 .dialogue .who { font: 800 14px var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--red); margin-bottom: 6px; }
+.dialogue .who small { margin-left: 8px; text-transform: none; letter-spacing: 0; }
+.dialogue .who .role { font: 600 italic 15px var(--text); color: #6a2820; }
+.dialogue .who .meaning { font: italic 400 13px var(--text); color: #8a7058; }
 .dialogue .line, .dialogue .ask { margin: 0; font: 400 19px / 1.45 var(--text); }
 .dialogue.self .line { font-style: italic; color: #3c2e22; }
 .dialogue .ask { font-style: italic; color: #5a4632; font-size: 16px; margin-bottom: 10px; }

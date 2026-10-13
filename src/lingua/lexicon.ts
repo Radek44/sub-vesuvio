@@ -370,6 +370,8 @@ const verbs: Entry[] = [
     note: 'Election notices end with who asks you to vote: … rogant, "… ask (you)".',
   }),
   V('emō, emere, ēmī, ēmptum', 3, 'I buy', "j'achète ; acheter"),
+  V('bibō, bibere, bibī, —', 3, 'I drink', 'je bois ; boire'),
+  V('pulsō, pulsāre, pulsāvī, pulsātum', 1, 'I knock, I beat', 'je frappe ; frapper'),
   V('vēndō, vēndere, vēndidī, vēnditum', 3, 'I sell', 'je vends ; vendre'),
   V('quaerō, quaerere, quaesīvī, quaesītum', 3, 'I look for, I search; I ask', 'je cherche ; chercher'),
   V('currō, currere, cucurrī, cursum', 3, 'I run', 'je cours ; courir'),
@@ -532,6 +534,9 @@ const nouns3: Entry[] = [
   // People of the town (name tags), trades and shopkeepers
   N('senex', 'senis', 'm', 'old man', 'vieil homme', { note: 'Genitive plural senum.' }),
   N('pistor', 'pistōris', 'm', 'baker, miller', 'boulanger, meunier'),
+  N('portitor', 'portitōris', 'm', 'toll collector', 'péager, douanier'),
+  N('vīnārius', 'vīnāriī', 'm', 'wine seller', 'marchand de vin', { alt: table('gen.sg: vīnārī') }),
+  N('coqua', 'coquae', 'f', 'cook (a woman)', 'cuisinière'),
   N('caupō', 'caupōnis', 'm', 'innkeeper, shopkeeper', 'aubergiste, tenancier'),
   N('sūtor', 'sūtōris', 'm', 'shoemaker', 'cordonnier'),
   N('fullō', 'fullōnis', 'm', 'fuller (cleaner of cloth)', 'foulon (nettoyeur d’étoffes)'),

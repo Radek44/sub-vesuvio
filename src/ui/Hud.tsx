@@ -6,16 +6,11 @@
 import { useMemo } from 'react';
 import { Joystick, useStore } from 'ymir/ui';
 import { OBJECTIVES } from '../content/prologue';
-import { PANEL_LATIN } from '../content/ui';
+import { PANEL_LATIN, VERB_LATIN } from '../content/ui';
 import { dismissToast, input, openPanel, queue, setGlosses, store } from '../game';
 import { DISTRICTS } from '../level';
 import { itemIcons } from './portraits';
 import { Purse } from './Purse';
-
-const VERBS = {
-  en: { speak: 'Speak', read: 'Read', look: 'Look', drink: 'Drink', enter: 'Enter', command: 'Command Ferox', knock: 'Knock', shop: 'Shop', take: 'Pick up', go: 'Go' },
-  fr: { speak: 'Parler', read: 'Lire', look: 'Regarder', drink: 'Boire', enter: 'Entrer', command: 'Commander Ferox', knock: 'Frapper', shop: 'Acheter', take: 'Ramasser', go: 'Aller' },
-} as const;
 
 /** Vesuvius as a little emblem, its plume as tall as this chapter's (0–1). */
 function Plume({ size }: { size: number }) {
@@ -71,7 +66,8 @@ export function Hud() {
       <Toasts />
       {prompt && !talking && (
         <div className="act" data-ui="prompt" style={{ transform: `translate(${prompt.x}px, ${prompt.y}px)` }}>
-          <kbd>{touch ? '●' : 'E'}</kbd>{VERBS[lang][prompt.verb as keyof (typeof VERBS)['en']] ?? prompt.verb}
+          <kbd>{touch ? '●' : 'E'}</kbd><span lang="la">{VERB_LATIN[prompt.verb]?.la ?? prompt.verb}</span>
+          {glosses && VERB_LATIN[prompt.verb] && <small>{VERB_LATIN[prompt.verb]![lang]}</small>}
         </div>
       )}
       {!talking && (
