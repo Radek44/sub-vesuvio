@@ -58,8 +58,8 @@ fixes and features go to Ymir first (its roadmap is §13 of the design), then mo
   `Math.random`. `test/architecture.test.ts` enforces it for both.
 - Labels in town are Latin first: name tags (cast names, or the Latin for what a townsperson is, `TAGS`), shop
   signs, waymarkers («Ad Forum»). Their meanings show underneath only with the `glosses` setting on.
-- `scripts/qa-city.mjs` (shop, panels, pickup, travel) and `scripts/qa-tour.mjs` (screenshots of every district)
-  run against the dev server on 5180.
+- `scripts/qa-city.mjs` (shop, panels, pickup, travel), `scripts/qa-mouse.mjs` (hover, hold to walk, click to
+  walk and to talk) and `scripts/qa-tour.mjs` (screenshots of every district) run against the dev server on 5180.
 - A change to the save's shape bumps its version and adds a migration, with a test loading a real old save.
 - Analytics: `analytics.step`/`track` from the controller only; no free text in payloads.
 - `npm run validate` before every commit; CI also builds and runs `npm run smoke`.

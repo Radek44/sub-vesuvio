@@ -35,6 +35,7 @@ export function Hud() {
   const lang = useStore(store, (v) => v.save.lang);
   const touch = useStore(store, (v) => v.touch);
   const glosses = useStore(store, (v) => v.save.glosses);
+  const hover = useStore(store, (v) => v.hover);
   return (
     <>
       <div className={`objective${talking ? ' dim' : ''}`} data-ui="objective">
@@ -70,8 +71,17 @@ export function Hud() {
           {glosses && VERB_LATIN[prompt.verb] && <small>{VERB_LATIN[prompt.verb]![lang]}</small>}
         </div>
       )}
+      {hover && !talking && VERB_LATIN[hover.verb] && (
+        <div className="hover-act" data-ui="hover" style={{ transform: `translate(${hover.x}px, ${hover.y}px)` }}>
+          <span lang="la">{VERB_LATIN[hover.verb]!.la}</span>
+          {glosses && <small>{VERB_LATIN[hover.verb]![lang]}</small>}
+        </div>
+      )}
       {!talking && (
-        <Joystick onMove={(x, y) => input.touchMove(x, y)}>{null}</Joystick>
+        // the stick is for touch: a mouse clicks, holds to walk and hovers instead (game.ts `bindPointer`)
+        <div className="joywrap" onPointerDownCapture={(e) => { if (e.pointerType === 'mouse') e.stopPropagation(); }}>
+          <Joystick onMove={(x, y) => input.touchMove(x, y)}>{null}</Joystick>
+        </div>
       )}
       {touch && !talking && <button type="button" className="act-btn" onClick={() => queue({ act: true })} aria-label="Act">●</button>}
     </>

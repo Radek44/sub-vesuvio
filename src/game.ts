@@ -28,13 +28,15 @@ export interface View {
   touch: boolean;
   /** What "act" would do now (the prompt above the hero), and where on screen. */
   prompt: { verb: string; x: number; y: number } | null;
+  /** What a click would do on what the mouse is over, and where the pointer is (canvas pixels). */
+  hover: { verb: string; x: number; y: number } | null;
   /** 0–1 while the town meshes around the hero. */
   loading: number;
   panel: Panel;
   toasts: Toast[];
 }
 
-export const store = createStore<View>({ screen: 'title', sim: create(''), save: SAVE.load(null).state, touch: false, prompt: null, loading: 0, panel: null, toasts: [] });
+export const store = createStore<View>({ screen: 'title', sim: create(''), save: SAVE.load(null).state, touch: false, prompt: null, hover: null, loading: 0, panel: null, toasts: [] });
 export const input = createInput({
   act: ['KeyE', 'Space', 'Enter', 'pad:A'], run: ['ShiftLeft', 'ShiftRight', 'pad:B'],
   bag: ['KeyI', 'KeyB', 'pad:Y'], journal: ['KeyJ', 'pad:X'], map: ['KeyM', 'pad:Back'], back: ['Escape', 'pad:Start'],
@@ -81,7 +83,7 @@ export function start(host: HTMLElement, save: Save): () => void {
   analytics.step('boot', 'load_finished');
   analytics.step('boot', 'title_shown');
   world.stage.start((dt, t) => frame(dt, t));
-  const unzoom = bindZoom(), untap = bindTap();
+  const unzoom = bindZoom(), untap = bindPointer();
   return () => { unbind(); unzoom(); untap(); world?.dispose(); world = null; };
 }
 
@@ -135,27 +137,75 @@ function bindZoom(): () => void {
   };
 }
 
+/** The mouse over the town (canvas pixels), and a held button walking the hero toward it. */
+let mouse: { x: number; y: number } | null = null;
+let hold: { id: number; x0: number; y0: number; t: number; walking: boolean } | null = null;
+/** A press held this long, or dragged this far, walks toward the pointer instead of clicking. */
+const HOLD_MS = 300, DRAG_PX = 10;
+
 /**
- * A click or a tap on the town walks the hero there, or up to whoever or whatever was clicked, to act on
- * it. A drag is the stick (ymir/ui `Joystick` covers the town), so only a short press that barely moved counts.
+ * The pointer on the town. A click or a tap walks the hero there, or up to whoever or whatever was clicked, to
+ * act on it. With a mouse, holding the button walks toward the pointer for as long as it's held (and the
+ * mouse's position drives the hover: `updateHover`). On a touch screen a drag is the stick (ymir/ui `Joystick`,
+ * which the HUD keeps for touch). Listened for in the capture phase, ahead of React's handlers.
  */
-function bindTap(): () => void {
+function bindPointer(): () => void {
   let down: { id: number; x: number; y: number; t: number } | null = null;
-  const press = (e: PointerEvent) => { down = e.isPrimary && e.button === 0 && overTown(e) ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null; };
+  const local = (e: PointerEvent) => { const r = world!.stage.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const press = (e: PointerEvent) => {
+    down = e.isPrimary && e.button === 0 && overTown(e) ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null;
+    hold = down && e.pointerType === 'mouse' ? { id: e.pointerId, x0: e.clientX, y0: e.clientY, t: down.t, walking: false } : null;
+    if (hold && world) mouse = local(e);
+  };
+  const move = (e: PointerEvent) => {
+    if (e.pointerType !== 'mouse' || !world) return;
+    // while held, keep following the pointer even over a label or a button; otherwise only over the town
+    mouse = hold || overTown(e) ? local(e) : null;
+    if (hold && !hold.walking && Math.hypot(e.clientX - hold.x0, e.clientY - hold.y0) > DRAG_PX) hold.walking = true;
+  };
   const release = (e: PointerEvent) => {
-    const d = down;
-    down = null;
-    if (!d || d.id !== e.pointerId || !world) return;
-    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || performance.now() - d.t > 450) return;
+    const d = down, h = hold;
+    down = hold = null;
+    if (h?.walking || !d || d.id !== e.pointerId || !world) return; // a held walk ends here; it was no click
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > DRAG_PX || performance.now() - d.t > 450) return;
     const v = store.get();
     if (v.screen !== 'play' || v.panel || v.sim.talk || v.sim.shop) return;
-    const r = world.stage.canvas.getBoundingClientRect();
-    const g = world.pick(e.clientX - r.left, e.clientY - r.top, v.sim);
-    if (g) { queue({ goto: g }); analytics.track('walk_to', { act: g.act ? 1 : 0 }); }
+    const p = local(e);
+    const g = world.pick(p.x, p.y, v.sim);
+    if (g) { queue({ goto: { x: g.x, z: g.z, act: g.act } }); analytics.track('walk_to', { act: g.act ? 1 : 0 }); }
   };
-  document.addEventListener('pointerdown', press);
-  document.addEventListener('pointerup', release);
-  return () => { document.removeEventListener('pointerdown', press); document.removeEventListener('pointerup', release); };
+  const cancel = () => { down = hold = null; };
+  const leave = (e: PointerEvent) => { if (e.pointerType === 'mouse' && !hold) mouse = null; };
+  document.addEventListener('pointerdown', press, true);
+  document.addEventListener('pointermove', move, true);
+  document.addEventListener('pointerup', release, true);
+  document.addEventListener('pointercancel', cancel, true);
+  document.documentElement.addEventListener('pointerleave', leave);
+  addEventListener('blur', cancel);
+  return () => {
+    document.removeEventListener('pointerdown', press, true);
+    document.removeEventListener('pointermove', move, true);
+    document.removeEventListener('pointerup', release, true);
+    document.removeEventListener('pointercancel', cancel, true);
+    document.documentElement.removeEventListener('pointerleave', leave);
+    removeEventListener('blur', cancel);
+  };
+}
+
+/**
+ * What the mouse is over: someone or something to act on gets a gold ring, a hand for a cursor, and the
+ * Latin for what a click would do beside the pointer. Nothing while talking, shopping, a panel or a held walk.
+ */
+function updateHover(view: View): void {
+  if (!world) return;
+  const quiet = !mouse || hold?.walking || view.sim.talk || view.sim.shop || view.panel;
+  const it = quiet ? null : world.pickThing(mouse!.x, mouse!.y, view.sim);
+  world.setHover(it);
+  const cursor = it ? 'act' : mouse && !quiet ? 'walk' : '';
+  if (document.body.dataset.cursor !== cursor) document.body.dataset.cursor = cursor;
+  const cur = view.hover;
+  if (!it) { if (cur) store.patch({ hover: null }); return; }
+  if (!cur || cur.verb !== it.verb || cur.x !== mouse!.x || cur.y !== mouse!.y) store.patch({ hover: { verb: it.verb, x: mouse!.x, y: mouse!.y } });
 }
 
 /** Start (`fresh`: a new journey, even under the same name) or continue: from the title screen. */
@@ -247,8 +297,17 @@ function frame(dt: number, t: number): void {
   // panels: their keys toggle them; Escape closes whatever is open (a panel, then a shop)
   for (const p of ['bag', 'journal', 'map'] as const) if (input.pressed(p) && !view.sim.talk) openPanel(p);
   if (input.pressed('back')) { if (store.get().panel) openPanel(null); else if (view.sim.shop) queue({ close: true }); }
+  updateHover(store.get());
   if (store.get().panel) { world.sync(view.sim, t, dt); queued = {}; acc = 0; return; }
-  const v = input.vector();
+  let v = input.vector();
+  let run = input.down('run');
+  // a held mouse button walks toward the pointer (running when it's far)
+  if (hold && !hold.walking && performance.now() - hold.t > HOLD_MS) hold.walking = true;
+  if (hold?.walking && mouse && !view.sim.talk && !view.sim.shop) {
+    const g = world.pickGround(mouse.x, mouse.y), h = view.sim.hero;
+    const dx = g ? g.x - h.x : 0, dz = g ? g.z - h.z : 0, d = Math.hypot(dx, dz);
+    if (d > 3) { v = { x: dx / d, y: dz / d }; run ||= d > 64; }
+  }
   let s = view.sim;
   const before = s;
   pendingAct ||= input.pressed('act') || !!queued.act;
@@ -256,7 +315,7 @@ function frame(dt: number, t: number): void {
   let stepped = false;
   for (acc += dt * 1000; acc >= STEP_MS; acc -= STEP_MS) {
     // the stick is screen-relative; the camera looks north, so screen up is −z
-    s = step(s, { x: v.x, z: v.y, run: input.down('run'), act: pendingAct, ...extra });
+    s = step(s, { x: v.x, z: v.y, run, act: pendingAct, ...extra });
     pendingAct = false;
     extra.pick = extra.answer = extra.buy = undefined;
     extra.close = undefined;

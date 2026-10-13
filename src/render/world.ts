@@ -97,6 +97,9 @@ export class World {
   private post: Post | null = null;
   private meter: HTMLElement | null = null;
   private meterT = 0;
+  /** What the mouse is over (someone or something to act on): a gold ring at their feet. */
+  private hoverMark = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.56, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf2b84b, transparent: true, opacity: 0.9, depthWrite: false, fog: false }));
+  private hovered: { x: number; z: number } | null = null;
   /** Where a click sent the hero: a ring on the ground. */
   private mark = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.34, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xfff3dd, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
   private ray = new THREE.Raycaster();
@@ -113,9 +116,9 @@ export class World {
     LOOK.uBend.value = 0.018; // a gentle roll: the Forum's temples stay in view across the piazza
     this.hero = personRig('hero', CAST.hero);
     this.heroHat = personRig('hero:hat', { ...CAST.hero, hat: 0xc9a868 });
-    this.stage.scene.add(this.hero.root, this.heroHat.root, this.mark);
-    this.mark.visible = false;
-    this.mark.renderOrder = 3;
+    this.stage.scene.add(this.hero.root, this.heroHat.root, this.mark, this.hoverMark);
+    this.mark.visible = this.hoverMark.visible = false;
+    this.mark.renderOrder = this.hoverMark.renderOrder = 3;
     xray(this.hero.root);
     xray(this.heroHat.root);
     this.anchors = new Anchors((x, y, z) => this.stage.toScreen(x, y, z));
@@ -209,6 +212,12 @@ export class World {
       this.mark.position.set(end.x * VOX, (this.level!.groundAt(end.x, end.z) + 0.3) * VOX, end.z * VOX);
       this.mark.scale.setScalar(1 + 0.12 * Math.sin(t * 6));
     }
+    const hv = busy ? null : this.hovered;
+    this.hoverMark.visible = !!hv;
+    if (hv) {
+      this.hoverMark.position.set(hv.x * VOX, (this.level!.groundAt(hv.x, hv.z) + 0.4) * VOX, hv.z * VOX);
+      this.hoverMark.scale.setScalar(1 + 0.06 * Math.sin(t * 5));
+    }
     // Ferox, when he's in this district
     const f = s.ferox;
     const dog = folk.ferox;
@@ -253,21 +262,35 @@ export class World {
    * What a click or a tap at (x, y) on the canvas (CSS pixels) means: someone or something to walk up to and
    * act on, when one is drawn near the pointer; else the place on the ground the pointer is over (voxels).
    */
-  pick(px: number, py: number, s: State): { x: number; z: number; act?: string } | null {
+  pick(px: number, py: number, s: State): { x: number; z: number; act?: string; verb?: string } | null {
+    return this.pickThing(px, py, s) ?? this.pickGround(px, py);
+  }
+
+  /** Someone or something drawn near the pointer (CSS pixels), with what acting on it does; or null. */
+  pickThing(px: number, py: number, s: State): { x: number; z: number; act: string; verb: string } | null {
     const L = this.level;
     if (!L) return null;
-    let best: { x: number; z: number; act: string } | null = null, bestD = 44;
+    let best: { x: number; z: number; act: string; verb: string } | null = null, bestD = 44;
     for (const it of interactables(L, s)) {
       const p = this.stage.toScreen(it.x * VOX, (L.groundAt(it.x, it.z) + 8) * VOX, it.z * VOX);
       const d = Math.hypot(p.x - px, p.y - py);
-      if (p.visible && d < bestD) { best = { x: it.x, z: it.z, act: it.id }; bestD = d; }
+      if (p.visible && d < bestD) { best = { x: it.x, z: it.z, act: it.id, verb: it.verb }; bestD = d; }
     }
-    if (best) return best;
+    return best;
+  }
+
+  /** The place on the ground under the pointer (CSS pixels), voxels; or null (the sky). */
+  pickGround(px: number, py: number): { x: number; z: number } | null {
+    const L = this.level;
+    if (!L) return null;
     this.ray.setFromCamera(new THREE.Vector2((px / this.stage.width) * 2 - 1, 1 - (py / this.stage.height) * 2), this.camera);
     const o = this.ray.ray.origin, d = this.ray.ray.direction;
     const hit = L.world.raycast({ x: o.x / VOX, y: o.y / VOX, z: o.z / VOX }, d, 900);
     return hit ? { x: hit.x + 0.5, z: hit.z + 0.5 } : null;
   }
+
+  /** Mark what the mouse is over (voxels), or nothing. */
+  setHover(at: { x: number; z: number } | null): void { this.hovered = at; }
 
   /** Zoom out (positive) or in (negative), in steps of the whole range; it eases there. */
   zoomBy(d: number): void { this.zoomTo = Math.max(0, Math.min(1, this.zoomTo + d)); }
