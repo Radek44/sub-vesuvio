@@ -12,7 +12,7 @@ import { QUESTS } from '../src/content/quests';
 import { ITEMS } from '../src/content/items';
 import { TAGS } from '../src/art/people';
 import { DISTRICTS, district } from '../src/level';
-import { check, lintLatin, lintScript, type ChooseTask } from '../src/lingua';
+import { analyse, check, lintLatin, lintScript, type ChooseTask } from '../src/lingua';
 
 const prompts = Object.values(PROLOGUE).flatMap((n) => (n.then && 'prompt' in n.then && typeof n.then.prompt === 'object' ? [n.then.prompt] : []));
 
@@ -96,6 +96,20 @@ describe('Latin on things', () => {
         expect({ shop: sh.id, issues: lintLatin(sh.sign, { whole: true }) }).toEqual({ shop: sh.id, issues: [] });
         expect({ shop: sh.id, issues: lintLatin(sh.name.la, { whole: true }) }).toEqual({ shop: sh.id, issues: [] });
         for (const s of sh.stock) expect({ shop: sh.id, item: s.item, known: s.item in ITEMS, price: s.price > 0 }).toEqual({ shop: sh.id, item: s.item, known: true, price: true });
+      }
+      for (const e of L.exits) expect({ exit: `${id}/${e.id}`, issues: lintLatin(e.label.la, { whole: true }) }).toEqual({ exit: `${id}/${e.id}`, issues: [] });
+    }
+  });
+
+  it('every waymarker says where the street goes as Latin does: «ad» and the place in the accusative', () => {
+    for (const id of Object.keys(DISTRICTS) as (keyof typeof DISTRICTS)[]) {
+      for (const e of district(id).exits) {
+        const [ad, ...place] = e.label.la.split(' ');
+        expect({ exit: `${id}/${e.id}`, ad }).toEqual({ exit: `${id}/${e.id}`, ad: 'Ad' });
+        for (const w of place) {
+          const acc = analyse(w).some((r) => r.tag.case === 'acc');
+          expect({ exit: `${id}/${e.id}`, w, acc }).toEqual({ exit: `${id}/${e.id}`, w, acc: true });
+        }
       }
     }
   });

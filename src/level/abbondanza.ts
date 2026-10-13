@@ -84,7 +84,7 @@ export function buildAbbondanza(): Level {
     world: w, width: W, depth: D,
     occluders: [{ id: 'arch', world: upper, x0: VS.x0 - 18, x1: VS.x1 + 18, z0: FRONT - 2, z1: SOUTH + 4 }],
     trees: [], props: [], water: [], fires: [], smoke: [], jets: [], spots: [], npcs: [], walkers: [], shops: [],
-    exits: [{ id: 'to-forum', to: 'forum', arrive: 'east', x0: 0, x1: 3, z0: ROAD_N - WALK, z1: PARAPET - 1, label: { en: 'To the Forum', fr: 'Vers le Forum' } }],
+    exits: [{ id: 'to-forum', to: 'forum', arrive: 'east', x0: 0, x1: 3, z0: ROAD_N - WALK, z1: PARAPET - 1, label: { la: 'Ad Forum', en: 'To the Forum', fr: 'Vers le Forum' } }],
     spawns: SPAWNS,
     groundAt: (x, z) => {
       const base = onVS(x) && (z < ROAD_N - WALK || z > ROAD_S + WALK) ? vsY(z) : roadY(x);

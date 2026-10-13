@@ -8,6 +8,8 @@
  *   and settings (hint language).
  * - v3: the open city: which district the hero is in (and Ferox), the purse, the satchel, side quests,
  *   districts visited. A v2 story was all at Porta Marina with the starting purse.
+ * - v4: `glosses`, whether name tags, shop signs and waymarkers show their meaning under the Latin. Off:
+ *   the labels are Latin first, and a v3 player starts with Latin only too.
  */
 import { defineSave } from 'ymir/core';
 import type { Grade } from './lingua';
@@ -36,6 +38,8 @@ export interface Save {
   story: Story | null;
   /** Hints and feedback in English or French. */
   lang: 'en' | 'fr';
+  /** Translations (in `lang`) under the Latin of name tags, shop signs and waymarkers. */
+  glosses: boolean;
   /** Player-scoped funnel steps already sent (ymir/analytics `persisted`). */
   funnels: string[];
 }
@@ -68,8 +72,8 @@ function story(s: unknown): Story | null {
 }
 
 export const SAVE = defineSave<Save>({
-  version: 3,
-  initial: () => ({ name: '', story: null, lang: 'en', funnels: [] }),
+  version: 4,
+  initial: () => ({ name: '', story: null, lang: 'en', glosses: false, funnels: [] }),
   migrate: {
     // From the starter: nothing of the coin game carries over but the funnel steps already sent.
     2: (v1: { funnels?: unknown }) => ({ name: '', story: null, lang: 'en', funnels: strings(v1?.funnels) }),
@@ -78,11 +82,14 @@ export const SAVE = defineSave<Save>({
       ...v2,
       story: v2.story ? { ...v2.story, district: 'portaMarina', feroxDistrict: 'portaMarina', coins: START_COINS, items: {}, quests: {}, visited: ['portaMarina'] } : null,
     }),
+    // Latin-first labels: the meanings under them are a setting, off to start with.
+    4: (v3: Record<string, unknown>) => ({ ...v3, glosses: false }),
   },
   normalize: (s) => ({
     name: typeof s.name === 'string' ? s.name.slice(0, 20) : '',
     story: story(s.story),
     lang: s.lang === 'fr' ? 'fr' : 'en',
+    glosses: s.glosses === true,
     funnels: strings(s.funnels),
   }),
 });

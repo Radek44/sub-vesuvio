@@ -154,7 +154,7 @@ export class World {
     for (const e of level.exits) {
       const x = (e.x0 + e.x1) / 2, z = (e.z0 + e.z1) / 2;
       const y = level.groundAt(x, z) * VOX + 1.6;
-      this.label(el('way', `<span class="en">${esc(e.label.en)}</span><span class="fr">${esc(e.label.fr)}</span>`), () => ({ x: x * VOX, y, z: z * VOX }), SIGN_NEAR, SIGN_FAR);
+      this.label(el('way', `<b lang="la">${esc(e.label.la)}</b><small class="en">${esc(e.label.en)}</small><small class="fr">${esc(e.label.fr)}</small>`), () => ({ x: x * VOX, y, z: z * VOX }), SIGN_NEAR, SIGN_FAR);
     }
   }
 
@@ -164,6 +164,8 @@ export class World {
   }
 
   setLang(lang: 'en' | 'fr'): void { this.layer.dataset.lang = lang; }
+  /** Show the meanings under the Latin of name tags, shop signs and waymarkers. */
+  setGlosses(on: boolean): void { this.layer.dataset.gloss = on ? 'on' : 'off'; }
 
   /** Mesh what's near the hero now (a loading screen calls this until it returns 0). */
   preload(s: State, budgetMs = 30): number { return this.town ? this.town.sync({ x: s.hero.x, y: s.hero.y, z: s.hero.z }, budgetMs, false) : 1; }

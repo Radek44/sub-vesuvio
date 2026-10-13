@@ -142,6 +142,10 @@ export const REF_NOUNS: Record<string, RefNoun> = {
     sg: ['aedificium', 'aedificiī/aedificī', 'aedificiō', 'aedificium', 'aedificiō', 'aedificium'],
     pl: ['aedificia', 'aedificiōrum', 'aedificiīs', 'aedificia', 'aedificiīs', 'aedificia'],
   },
+  thermae: {
+    gender: 'f',
+    pl: ['thermae', 'thermārum', 'thermīs', 'thermās', 'thermīs', 'thermae'],
+  },
   Pompeiī: {
     gender: 'm',
     pl: ['Pompeiī', 'Pompeiōrum', 'Pompeiīs', 'Pompeiōs', 'Pompeiīs', 'Pompeiī'],
@@ -227,6 +231,20 @@ export interface RefAdj {
 }
 
 export const REF_ADJECTIVES: Record<string, RefAdj> = {
+  marīnus: {
+    m: {
+      sg: ['marīnus', 'marīnī', 'marīnō', 'marīnum', 'marīnō', 'marīne'],
+      pl: ['marīnī', 'marīnōrum', 'marīnīs', 'marīnōs', 'marīnīs', 'marīnī'],
+    },
+    f: {
+      sg: ['marīna', 'marīnae', 'marīnae', 'marīnam', 'marīnā', 'marīna'],
+      pl: ['marīnae', 'marīnārum', 'marīnīs', 'marīnās', 'marīnīs', 'marīnae'],
+    },
+    n: {
+      sg: ['marīnum', 'marīnī', 'marīnō', 'marīnum', 'marīnō', 'marīnum'],
+      pl: ['marīna', 'marīnōrum', 'marīnīs', 'marīna', 'marīnīs', 'marīna'],
+    },
+  },
   magnus: {
     m: {
       sg: ['magnus', 'magnī', 'magnō', 'magnum', 'magnō', 'magne'],

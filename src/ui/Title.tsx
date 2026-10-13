@@ -4,12 +4,12 @@
  */
 import { useState } from 'react';
 import { useStore } from 'ymir/ui';
-import { play, setLang, store } from '../game';
+import { play, setGlosses, setLang, store } from '../game';
 import { OBJECTIVES } from '../content/prologue';
 
 const T = {
-  en: { sub: 'Pompeii · October, AD 79', name: 'What is your name, traveller?', begin: 'Begin', cont: 'Continue', newGame: 'New journey', where: 'Last time:', lang: 'Hints in' },
-  fr: { sub: 'Pompéi · octobre 79 apr. J.-C.', name: 'Comment t’appelles-tu, voyageur ?', begin: 'Commencer', cont: 'Continuer', newGame: 'Nouveau voyage', where: 'La dernière fois :', lang: 'Indices en' },
+  en: { sub: 'Pompeii · October, AD 79', name: 'What is your name, traveller?', begin: 'Begin', cont: 'Continue', newGame: 'New journey', where: 'Last time:', lang: 'Hints in', labels: 'Labels in town', laOnly: 'Latin only', both: 'Latin + English' },
+  fr: { sub: 'Pompéi · octobre 79 apr. J.-C.', name: 'Comment t’appelles-tu, voyageur ?', begin: 'Commencer', cont: 'Continuer', newGame: 'Nouveau voyage', where: 'La dernière fois :', lang: 'Indices en', labels: 'En ville, les étiquettes', laOnly: 'Latin seul', both: 'Latin + français' },
 };
 
 export function Title() {
@@ -43,6 +43,11 @@ export function Title() {
           <span>{t.lang}</span>
           <button type="button" className={save.lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>English</button>
           <button type="button" className={save.lang === 'fr' ? 'on' : ''} onClick={() => setLang('fr')}>Français</button>
+        </div>
+        <div className="langs">
+          <span>{t.labels}</span>
+          <button type="button" className={save.glosses ? '' : 'on'} data-ui="labels-la" onClick={() => setGlosses(false)}>{t.laOnly}</button>
+          <button type="button" className={save.glosses ? 'on' : ''} data-ui="labels-both" onClick={() => setGlosses(true)}>{t.both}</button>
         </div>
       </div>
     </div>

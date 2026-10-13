@@ -38,7 +38,7 @@ export const store = createStore<View>({ screen: 'title', sim: create(''), save:
 export const input = createInput({
   act: ['KeyE', 'Space', 'Enter', 'pad:A'], run: ['ShiftLeft', 'ShiftRight', 'pad:B'],
   bag: ['KeyI', 'KeyB', 'pad:Y'], journal: ['KeyJ', 'pad:X'], map: ['KeyM', 'pad:Back'], back: ['Escape', 'pad:Start'],
-  zoomIn: ['Equal', 'NumpadAdd'], zoomOut: ['Minus', 'NumpadSubtract'],
+  zoomIn: ['Equal', 'NumpadAdd'], zoomOut: ['Minus', 'NumpadSubtract'], gloss: ['KeyT'],
 });
 
 let world: World | null = null;
@@ -74,6 +74,7 @@ export function start(host: HTMLElement, save: Save): () => void {
     fps: qaParam('fps') !== null,
   });
   world.setLang(save.lang);
+  world.setGlosses(save.glosses);
   world.setLevel(district('portaMarina'));
   analytics.step('boot', 'load_finished');
   analytics.step('boot', 'title_shown');
@@ -197,6 +198,15 @@ function load(s: State): void {
   requestAnimationFrame(tick);
 }
 
+/** Translations under the Latin labels in town, on or off (the title screen, the HUD, or T). */
+export function setGlosses(on: boolean): void {
+  const save = { ...store.get().save, glosses: on };
+  store.patch({ save });
+  world?.setGlosses(on);
+  analytics.track('glosses', { on: on ? 1 : 0 });
+  void saveGame(SAVE, save);
+}
+
 export function setLang(lang: 'en' | 'fr'): void {
   const save = { ...store.get().save, lang };
   store.patch({ save });
@@ -229,6 +239,7 @@ function frame(dt: number, t: number): void {
   if (!world) return;
   if (view.screen === 'loading') return; // the loading screen runs its own loop (`load`)
   if (view.screen !== 'play') { world.sync(view.sim, t, dt); return; }
+  if (input.pressed('gloss')) setGlosses(!store.get().save.glosses);
   if (input.down('zoomIn')) world.zoomBy(-dt * 0.8);
   if (input.down('zoomOut')) world.zoomBy(dt * 0.8);
   // panels: their keys toggle them; Escape closes whatever is open (a panel, then a shop)

@@ -42,7 +42,7 @@ fixes and features go to Ymir first (its roadmap is §13 of the design), then mo
   `Shop` (the counter), `Panels` (Pēra: satchel, Negōtia: journal, Forma: map), `names.ts`, `portraits.ts`
   (faces and item icons from the voxel models), `Dialogue` (portraits,
   answer tablets, kind feedback), `Latin` (Latin set apart, glosses on tap), `portraits.ts`. `src/styles.css`.
-- `src/save.ts`: the versioned save (v3: name, story incl. district, purse, satchel, quests; language). `src/analytics.ts`: funnels. `src/boot.ts`.
+- `src/save.ts`: the versioned save (v4: name, story incl. district, purse, satchel, quests; language; `glosses`). `src/analytics.ts`: funnels. `src/boot.ts`.
 - `debug.html` + `src/debug.ts`: the art check (`?at=x,z&mood=&bend=&dist=`), not part of the game.
 - `src/lingua/`: the Latin engine, pure, no Ymir (`index.ts` barrel). `lexicon.ts` (entries with macrons, en/fr,
   grammar point; irregular forms listed, never guessed), `forms.ts` (generator), `analyse.ts` (every reading of a
@@ -55,7 +55,8 @@ fixes and features go to Ymir first (its roadmap is §13 of the design), then mo
 ## Rules: the game
 - The sim and `lingua` never read the clock, the DOM, Three.js or the platform, and never call
   `Math.random`. `test/architecture.test.ts` enforces it for both.
-- Name tags over people: cast names, or the Latin for what a townsperson is (`TAGS`) with its meaning.
+- Labels in town are Latin first: name tags (cast names, or the Latin for what a townsperson is, `TAGS`), shop
+  signs, waymarkers («Ad Forum»). Their meanings show underneath only with the `glosses` setting on.
 - `scripts/qa-city.mjs` (shop, panels, pickup, travel) and `scripts/qa-tour.mjs` (screenshots of every district)
   run against the dev server on 5180.
 - A change to the save's shape bumps its version and adds a migration, with a test loading a real old save.

@@ -483,6 +483,7 @@ const nouns2: Entry[] = [
   N('oleum', 'oleī', 'n', 'oil (olive oil)', 'huile (d’olive)'),
   N('macellum', 'macellī', 'n', 'market hall (for food)', 'marché couvert (alimentation)'),
   N('thermopolium', 'thermopoliī', 'n', 'hot-food shop', 'comptoir de plats chauds'),
+  N('thermae', 'thermārum', 'f', 'the public baths', 'les thermes, les bains publics', { decl: 1, only: 'pl', note: 'Plural in form: one building, «thermae».' }),
   N('ager', 'agrī', 'm', 'field', 'champ', { note: 'Drops its e: agrī.' }),
   N('liber', 'librī', 'm', 'book', 'livre', { note: 'Not līber, "free".' }),
   N('vir', 'virī', 'm', 'man', 'homme'),
@@ -560,6 +561,7 @@ const nouns3: Entry[] = [
 
 const adjectives: Entry[] = [
   A('magnus, magna, magnum', 'big, great; loud', 'grand ; fort (voix)'),
+  A('marīnus, marīna, marīnum', 'of the sea', 'de la mer, marin'),
   A('parvus, parva, parvum', 'small, little', 'petit'),
   A('bonus, bona, bonum', 'good', 'bon'),
   A('malus, mala, malum', 'bad, evil', 'mauvais, méchant'),

@@ -73,8 +73,8 @@ export function buildForum(): Level {
     ],
     trees: [], props: [], water: [], fires: [], smoke: [], jets: [], spots: [], npcs: [], walkers: [], shops: [],
     exits: [
-      { id: 'to-portaMarina', to: 'portaMarina', arrive: 'east', x0: 0, x1: 3, z0: VIA_MARINA.zN - VIA_MARINA.walk, z1: VIA_MARINA.zS + VIA_MARINA.walk, label: { en: 'To the Sea Gate', fr: 'Vers la porte de la Mer' } },
-      { id: 'to-abbondanza', to: 'abbondanza', arrive: 'west', x0: W - 4, x1: W - 1, z0: ABBONDANZA.zN - ABBONDANZA.walk, z1: ABBONDANZA.zS + ABBONDANZA.walk, label: { en: 'To Via dell’Abbondanza', fr: 'Vers la Via dell’Abbondanza' } },
+      { id: 'to-portaMarina', to: 'portaMarina', arrive: 'east', x0: 0, x1: 3, z0: VIA_MARINA.zN - VIA_MARINA.walk, z1: VIA_MARINA.zS + VIA_MARINA.walk, label: { la: 'Ad Portam Marīnam', en: 'To the Sea Gate', fr: 'Vers la porte de la Mer' } },
+      { id: 'to-abbondanza', to: 'abbondanza', arrive: 'west', x0: W - 4, x1: W - 1, z0: ABBONDANZA.zN - ABBONDANZA.walk, z1: ABBONDANZA.zS + ABBONDANZA.walk, label: { la: 'Ad Thermās', en: 'To Via dell’Abbondanza and the Stabian Baths', fr: 'Vers la Via dell’Abbondanza et les thermes de Stabies' } },
     ],
     spawns: SPAWNS,
     groundAt: (x, z) => (w.topAt(Math.round(x), Math.round(z), PZ + 14, PZ - 12) ?? PZ) + 1,

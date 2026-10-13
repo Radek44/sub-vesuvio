@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { Joystick, useStore } from 'ymir/ui';
 import { OBJECTIVES } from '../content/prologue';
 import { PANEL_LATIN } from '../content/ui';
-import { dismissToast, input, openPanel, queue, store } from '../game';
+import { dismissToast, input, openPanel, queue, setGlosses, store } from '../game';
 import { DISTRICTS } from '../level';
 import { itemIcons } from './portraits';
 import { Purse } from './Purse';
@@ -39,6 +39,7 @@ export function Hud() {
   const prompt = useStore(store, (v) => v.prompt);
   const lang = useStore(store, (v) => v.save.lang);
   const touch = useStore(store, (v) => v.touch);
+  const glosses = useStore(store, (v) => v.save.glosses);
   return (
     <>
       <div className={`objective${talking ? ' dim' : ''}`} data-ui="objective">
@@ -58,6 +59,13 @@ export function Hud() {
               {p === 'journal' && tasks > 0 && <i className="badge">{tasks}</i>}
             </button>
           ))}
+          <button type="button" className={`hud-btn gloss${glosses ? ' on' : ''}`} data-ui="glosses" aria-pressed={glosses} onClick={() => setGlosses(!glosses)}
+            title={lang === 'fr' ? 'Le sens sous le latin, en ville' : 'Meanings under the Latin in town'}>
+            <GlossIcon />
+            <span className="la" lang="la">{PANEL_LATIN.gloss}</span>
+            <i className="tr">{lang.toUpperCase()}</i>
+            {!touch && <kbd>T</kbd>}
+          </button>
         </div>
       </div>
       <Toasts />
@@ -72,6 +80,11 @@ export function Hud() {
       {touch && !talking && <button type="button" className="act-btn" onClick={() => queue({ act: true })} aria-label="Act">●</button>}
     </>
   );
+}
+
+/** A Latin word and its meaning under it. */
+function GlossIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="9" rx="2" fill="#e9dbbd" stroke="#3a2414" /><path d="M7 8.5 H17" stroke="#a3322a" strokeWidth="2" /><path d="M7 17 H17 M9 20 H15" stroke="#6a5440" strokeWidth="1.4" /></svg>;
 }
 
 function PanelIcon({ panel }: { panel: 'bag' | 'journal' | 'map' }) {
